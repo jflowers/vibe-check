@@ -26,7 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   from the cc.json census as physical lines of indexed source files
   (config-only modules report an honest 0), where Go counts significant
   lines. Python and TypeScript graphs
-  carry spike-measured error-budget and per-stage accuracy warnings and
+  carry measured error-budget and per-stage accuracy warnings and
   are `partial` whenever any warning exists. Provenance gains optional
   `sourceTool` / `sourceToolVersion` / `sourceToolCommit` fields recording
   the validated instrument. Go analysis is unchanged — byte-identical
@@ -116,7 +116,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `<RELEASE>`, the first release carrying all four upstream Python
   import-resolution fixes (redhat-et/ripwire#478: aliased `import a.b as c`,
   wide-form `from pkg import mod`, stdlib-name collisions, and denylist
-  disclosure). Python coupling is more accurate: <BUDGET-FIGURES>. The pin
+  disclosure). Python coupling is markedly more accurate — directory Ca/Ce
+  exact went from 79%/77% to 100% on pip and from 94%/59% to 100% on django,
+  measured against an `ast` ground truth with the same harness
+  (`openspec/changes/bump-ripwire-pin/measurement/results.md`); the
+  `error-budget` warning states the new figures. The pin
   stays exact and fail-closed; ripwire 0.6.9, 0.6.10, and development
   builds are refused. Snapshots taken with 0.6.9 are not comparable with
   new ones — coupling shifts reflect better import resolution, not code

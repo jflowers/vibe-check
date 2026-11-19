@@ -29,9 +29,9 @@
 
 ## 5. Error-budget re-measurement (design D6)
 
-- [ ] 5.1 Write the measurement harness under `openspec/changes/bump-ripwire-pin/measurement/`: a Python `ast` ground-truth resolver for in-tree imports and a comparator against `--deps --limit=N` file edges (lost %, spurious %); a TypeScript unresolved-target counter over `--deps`; a `README.md` with exact commands. Run Python with `python3 -I`. Verify: the ground-truth side reproduces the spike's pip @ `1000636` corpus (668 `.py` files, 77 package dirs) and rollup @ `ad39ddc` corpus (274 src `.ts` files), and the harness runs end-to-end on the `main` build.
-- [ ] 5.2 Measure pip @ `1000636`, django (pinned commit recorded in `results.md`), and rollup @ `ad39ddc` against the `main` build; write `measurement/results.md`. Verify: `results.md` lists target commits, binary version line, and figures. **Gate**: if any figure is worse than its 0.6.9 baseline (Python 1.9% lost / 2.2% spurious; TS 0.16% unresolved), stop and report — do not proceed.
-- [ ] 5.3 Update `budget.go` messages to the measured figures and name the pinned version via the `pinnedRipwireVersion` constant. Verify: `budget_test.go` asserts the new text; no literal version string in `budget.go`.
+- [x] 5.1 Write the measurement harness under `openspec/changes/bump-ripwire-pin/measurement/`: a Python `ast` ground-truth resolver for in-tree imports and a comparator against `--deps --limit=N` file edges (lost %, spurious %); a TypeScript unresolved-target counter over `--deps`; a `README.md` with exact commands. Run Python with `python3 -I`. Verify: the ground-truth side reproduces the spike's pip @ `1000636` corpus (668 `.py` files, 77 package dirs) and rollup @ `ad39ddc` corpus (274 src `.ts` files), and the harness runs end-to-end on the `main` build.
+- [x] 5.2 Measure pip @ `1000636`, django (pinned commit recorded in `results.md`), and rollup @ `ad39ddc` against the `main` build; write `measurement/results.md`. Verify: `results.md` lists target commits, binary version line, and figures. **Gate**: if any figure is worse than its 0.6.9 baseline (Python 1.9% lost / 2.2% spurious; TS 0.16% unresolved), stop and report — do not proceed.
+- [x] 5.3 Update `budget.go` messages to the measured figures and name the pinned version via the `pinnedRipwireVersion` constant. Verify: `budget_test.go` asserts the new text; no literal version string in `budget.go`.
 
 ## 6. Goldens, docs, single-source pin (Phase A)
 
