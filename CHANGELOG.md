@@ -14,7 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `tsconfig.json` markers, with a `.py` vs `.ts`/`.tsx` census fallback that
   defaults to Go) and routes Python and TypeScript projects to a new
   ripwire-backed adapter (`internal/ripwireadapter`). Coupling data comes
-  from a pinned external `ripwire` 0.6.9 (commit `bedc0cd`) binary —
+  from a pinned external `ripwire` `<RELEASE>` binary —
   resolved on `PATH` and validated fail-closed at analyze time —
   hybridized with vibe-check's own light language parse for Python
   abstractness (ABC / ABCMeta / Protocol class detection) and LCOM4
@@ -34,6 +34,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Without ripwire on `PATH`, Python and TypeScript analysis exits `2`
   with install guidance; Go analysis needs no ripwire.
   Spec: `openspec/changes/ripwire-adapter/specs/ripwire-adapter/spec.md`
+- Python/TypeScript graphs carry a `coupling-floor` warning when ripwire
+  marks a module `zone="unknown"` (it holds a file in a language ripwire
+  resolves almost no imports for): that module's Ca/Ce are lower bounds,
+  and the warning names the modules and languages. The `denylist-pruned`
+  warning now also lists packages ripwire itself reports as pruned, and
+  states ripwire's total when its listing is partial.
+  Spec: `openspec/changes/bump-ripwire-pin/specs/ripwire-release-pin/spec.md`
 - `vibe-check init` now registers the `divisor-entropy` reviewer into the
   project's Unbound Force policy files after deploying assets. It inserts a
   canonical `divisor-entropy` entry under `reviewers:` in
@@ -105,6 +112,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- The ripwire adapter's validated pin moved from ripwire 0.6.9 to
+  `<RELEASE>`, the first release carrying all four upstream Python
+  import-resolution fixes (redhat-et/ripwire#478: aliased `import a.b as c`,
+  wide-form `from pkg import mod`, stdlib-name collisions, and denylist
+  disclosure). Python coupling is more accurate: <BUDGET-FIGURES>. The pin
+  stays exact and fail-closed; ripwire 0.6.9, 0.6.10, and development
+  builds are refused. Snapshots taken with 0.6.9 are not comparable with
+  new ones — coupling shifts reflect better import resolution, not code
+  changes — so re-take a `diff` base snapshot after upgrading
+  (`provenance.input.sourceToolVersion` records which ripwire produced a
+  snapshot). The `--arch` parser now requires only the attributes the
+  adapter consumes, so trees mixing Python/TypeScript with files ripwire
+  cannot resolve (for example Go) analyze instead of failing. The
+  `cycle-approximation` warning now states ripwire's current listing cap.
+  Spec: `openspec/changes/bump-ripwire-pin/specs/ripwire-release-pin/spec.md`
 - Renamed the repository's self-gate workflow from
   `.github/workflows/structural-gate.yml` to
   `.github/workflows/vibe-check-structural-gate.yaml` (pure `git mv` — the

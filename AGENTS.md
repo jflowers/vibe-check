@@ -325,15 +325,15 @@ internal/goadapter/ # Go language adapter (Layer 2)
   testdata/         # Test fixtures (coupling, types, lcom, extensions, partial)
 internal/ripwireadapter/  # ripwire-backed Python/TypeScript adapter (Layer 2)
   adapter.go       # Adapter struct (one type, language-parameterized) + capabilities
-  version.go       # Fail-closed ripwire 0.6.9 @ bedc0cd version pin + sentinels
+  version.go       # Fail-closed ripwire release pin (single source: two constants) + sentinels
   runner.go        # Sanitized subprocess runner (bounded output, cancellation)
   crawl.go         # Crawl-root resolution (D9: Python src-layout, TS manifests)
-  denylist.go      # Denylist pre-check warning (build/dist/out/target/vendor/...)
+  denylist.go      # Denylist warning: pre-check (build/dist/...) ∪ ripwire <pruned_packages>
   guard.go         # Zero-coupling guard (edges == 0 with sources present)
-  parse_arch.go    # --arch metrics table parser (Ca/Ce authoritative)
+  parse_arch.go    # --arch parser: consumed attributes only; zone="unknown" rows are Ca/Ce floors
   parse_deps.go    # --deps file graph parser (edges, cycles, paging attrs)
   parse_cc.go      # --export=cc.json per-file metrics reader
-  mapping.go       # Directory-module mapping (D4 identity, deduped edges)
+  mapping.go       # Directory-module mapping (D4 identity, deduped edges, coupling-floor warning)
   cycles.go        # Tarjan SCC cycle derivation + corroboration warning
   lightparse.go    # Python abstractness light parse (ABC/ABCMeta/Protocol)
   lcom.go          # LCOM4 light parse (indent stack / brace depth, union-find)
@@ -341,6 +341,7 @@ internal/ripwireadapter/  # ripwire-backed Python/TypeScript adapter (Layer 2)
   tsabstractness.go  # TS interface-share bias warning
   assembly.go      # Analyze assembly: hybrid merge, warnings, provenance
   testdata/        # Fixtures: python/ (src layout), typescript/, recorded/
+                   # (incl. python-mixed ARCH-HONEST + python-zero-edge),
                    # goldens + fake-ripwire harness (hermetic test double)
 internal/scaffold/  # Embedded asset deployment + UF policy registration for `vibe-check init`
   doc.go            # Package-level GoDoc

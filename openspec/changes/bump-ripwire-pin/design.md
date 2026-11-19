@@ -243,6 +243,29 @@ The PR stays in draft through Phase A and is marked ready only after Phase B.
 - **Hardcoded denylist drift** remains possible for plain directories (ripwire
   rows only packages on `--arch`). Accepted; calling `--skipped` per analysis
   costs a subprocess for a rare case.
+- **Wide-form member edges are invisible to cycle derivation** (found in
+  Phase A implementation, task 1.2). Gap 1 reaches Ca/Ce — the `--arch`
+  table counts ripwire's resolved edges — but not the adapter's own edge
+  set: `--deps` records an import as written (`from fixturepy import
+  cycle_b` → `<inc t="fixturepy"/>`, the imported name dropped), and no
+  verb exposes the resolved target files (`cc.json` carries only per-file
+  `fan_in`/`fan_out` counts). The adapter's directory edges — and so its
+  Tarjan SCC — therefore miss a cycle closed only through a wide-form
+  subpackage import. This is not a regression: on 0.6.9 Ca/Ce and the edge
+  set both missed the edge; after the bump only the edge set does, so a
+  module's Ce can exceed its internal out-edges. Pinned in
+  `mapping_test.go` and disclosed in the README `cycle-approximation`
+  row. Remedies, both out of scope here: resolve `from X import n` members
+  in vibe-check's own Python light parse (consistent with the hybrid
+  split), or consume resolved edges from ripwire's `--dump-graph`
+  (redhat-et/ripwire#477, #68) once it lands.
+- **ripwire's `<cycles>` listing cap changed** (found in Phase A,
+  redhat-et/ripwire#479 item 2): the release shows max(20, `--limit`)
+  SCCs, so under the adapter's `--limit=1000` the 20-SCC cap the
+  `cycle-approximation` message quoted no longer applies.
+  `ripwireCycleMaxSCCs` now derives from the adapter's `depsWindowLimit`;
+  the 12-member cap is unchanged and now disclosed upstream by
+  `members_capped=1`.
 - **Gap 4's disclosed floor** (upstream): a script inside a package can lose a
   true sibling edge (`src/__init__.py` + `python src/train.py`). Inherited
   from upstream; folded into the re-measured Python budget rather than a
