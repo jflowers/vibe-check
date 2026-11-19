@@ -12,12 +12,21 @@ import (
 // fail-closed: any binary whose reported version or commit does not match
 // these constants is refused at Analyze time, because every parsing,
 // mapping, and golden decision in this package was made against this
-// exact output shape.
+// exact output shape. These two constants are the only code sites naming
+// the pinned pair; documentation elsewhere refers to "the pinned ripwire
+// release".
+//
+// PROVISIONAL (openspec/changes/bump-ripwire-pin design D8, Phase A): the
+// pair below is a placeholder for the first ripwire release containing
+// redhat-et/ripwire#533 — the version is the expected release number and
+// the commit is the ripwire main build the Phase A recordings were captured
+// from. Phase B (tasks 7.1–7.2) replaces both with the published release's
+// values before this change merges.
 const (
 	// pinnedRipwireVersion is the validated ripwire release version.
-	pinnedRipwireVersion = "0.6.9"
+	pinnedRipwireVersion = "0.6.11"
 	// pinnedRipwireCommit is the validated commit prefix (built_from=).
-	pinnedRipwireCommit = "bedc0cd"
+	pinnedRipwireCommit = "1edb6fd"
 )
 
 // ripwireInstallURL names the install location carried by the absent-binary
@@ -102,7 +111,7 @@ func validatedRipwire(ctx context.Context) (string, ripwireVersionInfo, error) {
 // parseRipwireVersion parses a ripwire --version line of the validated
 // shape:
 //
-//	ripwire 0.6.9 (Release, AppleClang 21.0.0.21000101, emit=std::print, built_from=bedc0cdcf)
+//	ripwire X.Y.Z (Release, AppleClang 21.0.0.21000334, emit=std::print, built_from=<commit>)
 //
 // The version is the second whitespace-separated token; the commit is the
 // value of the trailing built_from= attribute. Compiler and emit fields in

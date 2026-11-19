@@ -14,11 +14,13 @@ import (
 const warningCycleApproximation = "cycle-approximation"
 
 // ripwireCaps are the listing caps ripwire applies to its own <cycles>
-// report (validated against the bundled 0.6.9 reference): at most 20
-// SCCs, at most 12 members each, with no total count. The adapter's own
-// derivation is uncapped, which is one reason it is an approximation.
+// report in the pinned release: max(20, --limit) SCCs — so the adapter's
+// --deps window size, depsWindowLimit — and at most 12 member files per
+// SCC (kCycleMemberCap; a cut cycle carries members_capped=1). The
+// adapter's own derivation is uncapped, which is one reason it is an
+// approximation.
 const (
-	ripwireCycleMaxSCCs    = 20
+	ripwireCycleMaxSCCs    = depsWindowLimit
 	ripwireCycleMaxMembers = 12
 )
 
@@ -29,7 +31,7 @@ const (
 // sorted within a cycle, cycles sorted by their first member.
 //
 // Corroboration: ripwire's own <cycles> listing (file-grain, capped at
-// 20 SCCs × 12 members) is mapped to directory grain and compared against
+// depsWindowLimit SCCs × 12 members) is mapped to directory grain and compared against
 // the derivation. The corroboration result feeds the cycle-approximation
 // warning, which is emitted whenever the adapter derived at least one
 // cycle — the derivation is an approximation even when ripwire's listing

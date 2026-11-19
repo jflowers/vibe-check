@@ -147,8 +147,8 @@ func TestRunAnalyze_AdapterSelection(t *testing.T) {
 		if result.Graph == nil || result.Graph.Language != "python" {
 			t.Fatalf("graph language: got %+v, want python", result.Graph)
 		}
-		if len(result.Graph.Modules) != 4 {
-			t.Errorf("modules: got %d, want 4 (fixture graph)", len(result.Graph.Modules))
+		if len(result.Graph.Modules) != 7 {
+			t.Errorf("modules: got %d, want 7 (fixture graph)", len(result.Graph.Modules))
 		}
 	})
 
@@ -197,11 +197,12 @@ func TestRunAnalyze_AbsentBinaryExitsWithGuidance(t *testing.T) {
 	if !errors.Is(err, ripwireadapter.ErrRipwireAbsent) {
 		t.Errorf("error %v does not wrap ErrRipwireAbsent", err)
 	}
+	pinnedVersion, pinnedCommit := recordedRipwirePin(t)
 	for _, want := range []string{
 		"ripwire",
 		"https://github.com/redhat-et/ripwire",
-		"0.6.9",
-		"bedc0cd",
+		pinnedVersion,
+		pinnedCommit,
 	} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("error %q does not carry guidance %q", err.Error(), want)
@@ -279,4 +280,26 @@ func marshalCLIGraph(graph *metrics.ModuleGraph) ([]byte, error) {
 		return nil, err
 	}
 	return append(data, '\n'), nil
+}
+
+// recordedRipwirePin returns the pinned (version, 7-character commit
+// prefix) pair as recorded in the adapter's fixture version line, so the
+// guidance assertion follows the pin without restating it (the adapter's
+// pin constants are unexported).
+func recordedRipwirePin(t *testing.T) (string, string) {
+	t.Helper()
+	path := filepath.Join(repoRoot(t), "internal", "ripwireadapter", "testdata", "recorded", "python", "version.txt")
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read recorded version line: %v", err)
+	}
+	fields := strings.Fields(string(data))
+	if len(fields) < 2 {
+		t.Fatalf("recorded version line %q: want at least two fields", data)
+	}
+	_, commit, ok := strings.Cut(string(data), "built_from=")
+	if !ok || len(commit) < 7 {
+		t.Fatalf("recorded version line %q: no built_from= commit", data)
+	}
+	return fields[1], commit[:7]
 }

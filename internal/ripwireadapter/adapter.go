@@ -16,7 +16,8 @@ var _ metrics.Adapter = (*Adapter)(nil)
 
 // Adapter implements [metrics.Adapter] for Python and TypeScript codebases
 // by hybridizing coupling data from an external ripwire binary (pinned to
-// 0.6.9 at commit bedc0cd) with vibe-check's own light language parse. See
+// one validated release; see version.go) with vibe-check's own light
+// language parse. See
 // the package documentation for the per-metric sourcing matrix.
 //
 // One struct type parameterized by language is used rather than two distinct

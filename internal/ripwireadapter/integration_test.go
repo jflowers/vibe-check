@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/zero-dot-force/vibe-check/metrics"
@@ -46,8 +47,8 @@ func TestIntegration_PythonFixturePipeline(t *testing.T) {
 	}
 
 	fixturepy := module("fixturepy")
-	if fixturepy.Ca != 0 || fixturepy.Ce != 0 {
-		t.Errorf("fixturepy ca/ce: got %d/%d, want 0/0", fixturepy.Ca, fixturepy.Ce)
+	if fixturepy.Ca != 1 || fixturepy.Ce != 0 {
+		t.Errorf("fixturepy ca/ce: got %d/%d, want 1/0", fixturepy.Ca, fixturepy.Ce)
 	}
 	if fixturepy.AbstractTypes != 1 || fixturepy.ExportedTypes != 4 {
 		t.Errorf("fixturepy abstract/exported: got %d/%d, want 1/4", fixturepy.AbstractTypes, fixturepy.ExportedTypes)
@@ -60,12 +61,30 @@ func TestIntegration_PythonFixturePipeline(t *testing.T) {
 	}
 
 	cycleA := module("fixturepy.cycle_a")
-	if cycleA.Ca != 1 || cycleA.Ce != 1 || cycleA.Instability != 0.5 {
-		t.Errorf("cycle_a ca/ce/I: got %d/%d/%v, want 1/1/0.5", cycleA.Ca, cycleA.Ce, float64(cycleA.Instability))
+	if cycleA.Ca != 2 || cycleA.Ce != 1 || cycleA.Instability != metrics.ComputeInstability(2, 1) {
+		t.Errorf("cycle_a ca/ce/I: got %d/%d/%v, want 2/1/%v", cycleA.Ca, cycleA.Ce,
+			float64(cycleA.Instability), float64(metrics.ComputeInstability(2, 1)))
 	}
 	cycleB := module("fixturepy.cycle_b")
-	if cycleB.Ca != 1 || cycleB.Ce != 1 {
-		t.Errorf("cycle_b ca/ce: got %d/%d, want 1/1", cycleB.Ca, cycleB.Ce)
+	if cycleB.Ca != 2 || cycleB.Ce != 1 {
+		t.Errorf("cycle_b ca/ce: got %d/%d, want 2/1", cycleB.Ca, cycleB.Ce)
+	}
+
+	// openspec/changes/bump-ripwire-pin spec "Fixtures exercise the pinned
+	// import fixes": each upstream fix shows at directory grain.
+	if wide := module("fixturepy.wide"); wide.Ce != 2 {
+		// gap 1: `from fixturepy import cycle_b` reaches the cycle_b
+		// subpackage as well as fixturepy/__init__.py.
+		t.Errorf("wide ce: got %d, want 2 (fixturepy and fixturepy.cycle_b)", wide.Ce)
+	}
+	if alias := module("fixturepy.alias"); alias.Ce != 1 {
+		// gap 2: `import fixturepy.cycle_a.api as ca` resolves.
+		t.Errorf("alias ce: got %d, want 1 (fixturepy.cycle_a)", alias.Ce)
+	}
+	if collide := module("fixturepy.collide"); collide.Ce != 0 {
+		// gap 4: in-package `import logging` binds the stdlib, not the
+		// sibling logging.py.
+		t.Errorf("collide ce: got %d, want 0 (no false sibling edge)", collide.Ce)
 	}
 
 	wantCycle := metrics.Cycle{"fixturepy.cycle_a", "fixturepy.cycle_b"}
@@ -83,6 +102,47 @@ func TestIntegration_PythonFixturePipeline(t *testing.T) {
 	}
 	if !reflect.DeepEqual(gotCodes, wantCodes) {
 		t.Errorf("warning codes: got %v, want %v", gotCodes, wantCodes)
+	}
+
+	encoded, err := json.Marshal(graph)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	if err := metrics.Validate(encoded); err != nil {
+		t.Errorf("metrics.Validate: %v", err)
+	}
+}
+
+// TestIntegration_MixedLanguagePipeline runs the full pipeline over the
+// ARCH-HONEST recording (a Go file inside fixturepy/cycle_a; openspec/
+// changes/bump-ripwire-pin spec "Mixed-language Python tree analyzes"):
+// analysis must succeed, validate, be partial, and carry one
+// coupling-floor warning naming the module and the language.
+func TestIntegration_MixedLanguagePipeline(t *testing.T) {
+	installFakeRipwireWrapper(t, filepath.Join("testdata", "recorded", "python-mixed"), "valid")
+
+	graph, err := NewPython().Analyze(t.Context(), filepath.Join("testdata", "python"))
+	if err != nil {
+		t.Fatalf("Analyze: %v", err)
+	}
+	if graph.Status != metrics.StatusPartial {
+		t.Errorf("status: got %q, want partial", graph.Status)
+	}
+
+	var floors []metrics.Warning
+	for _, w := range graph.Warnings {
+		if w.Code == warningCouplingFloor {
+			floors = append(floors, w)
+		}
+	}
+	if len(floors) != 1 || !strings.Contains(floors[0].Message, "fixturepy.cycle_a") || !strings.Contains(floors[0].Message, "go") {
+		t.Errorf("coupling-floor warnings: got %+v, want one naming fixturepy.cycle_a and go", floors)
+	}
+
+	for _, m := range graph.Modules {
+		if m.Path == "fixturepy.cycle_a" && (m.Ca != 2 || m.Ce != 1) {
+			t.Errorf("cycle_a floors: got ca/ce %d/%d, want 2/1", m.Ca, m.Ce)
+		}
 	}
 
 	encoded, err := json.Marshal(graph)
@@ -209,7 +269,7 @@ func TestIntegration_Determinism(t *testing.T) {
 }
 
 // TestIntegration_RealBinaryCorroboration optionally corroborates the
-// fixtures against a real ripwire 0.6.9 install (task 8.3). It skips
+// fixtures against a real install of the pinned ripwire release (task 8.3). It skips
 // cleanly when ripwire is not on PATH; where installed, the real
 // binary's output must reproduce the golden module metrics.
 func TestIntegration_RealBinaryCorroboration(t *testing.T) {

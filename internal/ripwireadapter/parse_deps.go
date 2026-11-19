@@ -136,7 +136,7 @@ type depsIncXML struct {
 	Target *string `xml:"t,attr"`
 }
 
-// parseDepsOutput parses the --deps XML from ripwire 0.6.9. The root's
+// parseDepsOutput parses the --deps XML from the pinned ripwire release. The root's
 // paging attributes, <health>, <godfiles>, <cycles>, and every <f> row
 // with its <inc> targets are captured verbatim. Malformed XML, a wrong
 // root element, missing required attributes, or duplicate file paths are

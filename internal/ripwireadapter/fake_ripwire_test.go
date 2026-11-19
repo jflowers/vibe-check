@@ -14,7 +14,7 @@ package ripwireadapter
 // drift): the committed script is testdata/fake-ripwire/ripwire; it is
 // installed on PATH as "ripewire" and looked up as "ripewire", the name the
 // production adapter resolves (design.md D2); the tool's own version output
-// begins "ripwire 0.6.9" (recorded/version.txt).
+// begins "ripwire <pinned version>" (recorded/version.txt).
 //
 // None of these tests may use t.Parallel(): t.Setenv pins the process-wide
 // environment for the duration of each test.
@@ -313,8 +313,8 @@ func TestFakeRipwire_VersionVariantsReturnExactBytes(t *testing.T) {
 		{
 			name:    "wrong_version",
 			variant: "wrong-version",
-			// Well-formed but matching neither the pinned version (0.6.9)
-			// nor the pinned commit prefix (bedc0cd): the exact line the
+			// Well-formed but matching neither the pinned version nor
+			// the pinned commit prefix: the exact line the
 			// fake-ripwire contract prescribes.
 			want: "ripwire 0.6.8 (Release, AppleClang 21.0.0.21000101, emit=std::print, built_from=deadbeef00)\n",
 		},

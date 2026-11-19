@@ -10,13 +10,21 @@ import (
 )
 
 // Directory-module mapping tests — openspec/changes/ripwire-adapter
-// task 4.3. They pin D4 identity, the authoritative Ca/Ce passthrough,
-// the deduplicated directory-pair edge set, Ce-only externals, and the
-// three mapping warnings.
+// task 4.3, extended by openspec/changes/bump-ripwire-pin tasks 2.2 and
+// 3.1–3.2. They pin D4 identity, the authoritative Ca/Ce passthrough,
+// the deduplicated directory-pair edge set, Ce-only externals, the
+// mapping warnings, both arch path forms, and coupling floors.
 
 func mapRecordedFixture(t *testing.T, language string) moduleMapping {
 	t.Helper()
-	recordings := filepath.Join("testdata", "recorded", language)
+	return mapRecording(t, language, language)
+}
+
+// mapRecording maps the recorded corpus (a directory under
+// testdata/recorded) with the given language's identity rules.
+func mapRecording(t *testing.T, corpus, language string) moduleMapping {
+	t.Helper()
+	recordings := filepath.Join("testdata", "recorded", corpus)
 	archData := readRecording(t, filepath.Join(recordings, "arch.txt"))
 	depsData := readRecording(t, filepath.Join(recordings, "deps.xml"))
 	table, err := parseArchOutput(archData)
@@ -81,11 +89,23 @@ func TestMapToModules_RecordedPython(t *testing.T) {
 
 	mapping := mapRecordedFixture(t, "python")
 
+	// Ca/Ce come from the --arch rows (ripwire's resolved edges); the
+	// Internal*/External* counters come from name-resolving --deps <inc t=>
+	// text. They disagree for the wide-form import: ripwire resolves
+	// `from fixturepy import cycle_b` to both fixturepy/__init__.py and
+	// cycle_b/__init__.py (wide Ce=2, cycle_b Ca=2), but --deps records the
+	// target as written ("fixturepy"), so the member edge to cycle_b is not
+	// in the adapter's edge set (wide InternalOut=1, cycle_b InternalIn=1).
+	// Pinned deliberately: see openspec/changes/bump-ripwire-pin design,
+	// Risks ("wide-form member edges are invisible to cycle derivation").
 	want := map[string]mappedModule{
-		"fixturepy":            {Identity: "fixturepy", Name: "fixturepy", Ca: 0, Ce: 0, Types: 5, Abstract: 0, ExternalOut: 1},
-		"fixturepy.cycle_a":    {Identity: "fixturepy.cycle_a", Name: "cycle_a", Ca: 1, Ce: 1, InternalOut: 1, InternalIn: 1},
-		"fixturepy.cycle_b":    {Identity: "fixturepy.cycle_b", Name: "cycle_b", Ca: 1, Ce: 1, InternalOut: 1, InternalIn: 1},
+		"fixturepy":            {Identity: "fixturepy", Name: "fixturepy", Ca: 1, Ce: 0, Types: 5, Abstract: 0, InternalIn: 1, ExternalOut: 1},
+		"fixturepy.alias":      {Identity: "fixturepy.alias", Name: "alias", Ca: 0, Ce: 1, InternalOut: 1},
+		"fixturepy.collide":    {Identity: "fixturepy.collide", Name: "collide", Ca: 0, Ce: 0, ExternalOut: 1},
+		"fixturepy.cycle_a":    {Identity: "fixturepy.cycle_a", Name: "cycle_a", Ca: 2, Ce: 1, InternalOut: 1, InternalIn: 2},
+		"fixturepy.cycle_b":    {Identity: "fixturepy.cycle_b", Name: "cycle_b", Ca: 2, Ce: 1, InternalOut: 1, InternalIn: 1},
 		"fixturepy.operations": {Identity: "fixturepy.operations", Name: "operations", Ca: 0, Ce: 0},
+		"fixturepy.wide":       {Identity: "fixturepy.wide", Name: "wide", Ca: 0, Ce: 2, InternalOut: 1},
 	}
 	if len(mapping.Modules) != len(want) {
 		t.Fatalf("modules: got %d, want %d", len(mapping.Modules), len(want))
@@ -110,8 +130,10 @@ func TestMapToModules_RecordedPython(t *testing.T) {
 	}
 
 	wantEdges := []moduleEdge{
+		{From: "fixturepy.alias", To: "fixturepy.cycle_a"},
 		{From: "fixturepy.cycle_a", To: "fixturepy.cycle_b"},
 		{From: "fixturepy.cycle_b", To: "fixturepy.cycle_a"},
+		{From: "fixturepy.wide", To: "fixturepy"},
 	}
 	if !reflect.DeepEqual(mapping.Edges, wantEdges) {
 		t.Errorf("edges: got %v, want %v", mapping.Edges, wantEdges)
@@ -119,7 +141,120 @@ func TestMapToModules_RecordedPython(t *testing.T) {
 
 	assertHasCodes(t, mapping.Warnings,
 		[]string{"directory-as-module", "name-resolved-edges"},
-		[]string{"ambiguity-rate"})
+		[]string{"ambiguity-rate", warningCouplingFloor})
+}
+
+// TestMapToModules_RecordedMixedLanguage pins design D3 on the ARCH-HONEST
+// recording: only the module holding the Go file is flagged, its floors
+// pass through, and one coupling-floor warning names it and the language.
+func TestMapToModules_RecordedMixedLanguage(t *testing.T) {
+	t.Parallel()
+
+	mapping := mapRecording(t, "python-mixed", languagePython)
+	for _, m := range mapping.Modules {
+		wantFlag := m.Identity == "fixturepy.cycle_a"
+		if m.CouplingFloor != wantFlag {
+			t.Errorf("%s: coupling floor: got %v, want %v", m.Identity, m.CouplingFloor, wantFlag)
+		}
+	}
+	cycleA := moduleByIdentity(t, mapping, "fixturepy.cycle_a")
+	if cycleA.Ca != 2 || cycleA.Ce != 1 || !reflect.DeepEqual(cycleA.NoFileEdges, []string{"go"}) {
+		t.Errorf("cycle_a: got ca=%d ce=%d langs=%v, want 2, 1, [go]", cycleA.Ca, cycleA.Ce, cycleA.NoFileEdges)
+	}
+
+	var floors []string
+	for _, w := range mapping.Warnings {
+		if w.Code == warningCouplingFloor {
+			floors = append(floors, w.Message)
+		}
+	}
+	want := []string{"ripwire resolves almost no imports for go; coupling for 1 module(s) is a floor, not an exact count: fixturepy.cycle_a"}
+	if !reflect.DeepEqual(floors, want) {
+		t.Errorf("coupling-floor warnings: got %q, want %q", floors, want)
+	}
+}
+
+func TestCouplingFloorWarning(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name    string
+		modules []mappedModule
+		want    string // "" means no warning
+	}{
+		{
+			name:    "no flagged module",
+			modules: []mappedModule{{Identity: "a"}, {Identity: "b"}},
+		},
+		{
+			name: "identities and languages sorted and de-duplicated",
+			modules: []mappedModule{
+				{Identity: "z", CouplingFloor: true, NoFileEdges: []string{"kt"}},
+				{Identity: "m"},
+				{Identity: "a", CouplingFloor: true, NoFileEdges: []string{"go", "kt"}},
+			},
+			want: "ripwire resolves almost no imports for go, kt; coupling for 2 module(s) is a floor, not an exact count: a, z",
+		},
+		{
+			name:    "flagged without listed languages",
+			modules: []mappedModule{{Identity: "x", CouplingFloor: true}},
+			want:    "ripwire resolves almost no imports for unlisted languages; coupling for 1 module(s) is a floor, not an exact count: x",
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got, ok := couplingFloorWarning(tc.modules)
+			if tc.want == "" {
+				if ok {
+					t.Fatalf("got warning %+v, want none", got)
+				}
+				return
+			}
+			if !ok || got.Code != warningCouplingFloor || got.Message != tc.want {
+				t.Errorf("got %+v (ok=%v), want %s %q", got, ok, warningCouplingFloor, tc.want)
+			}
+		})
+	}
+}
+
+// TestMapToModules_ArchPathForms pins task 2.2: ripwire prints row paths
+// with a leading "./" up to the previous pin and without it since; both forms (and
+// the root row ".") must map to the same identities.
+func TestMapToModules_ArchPathForms(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		language string
+		rows     []string
+		want     []string
+	}{
+		{languagePython, []string{".", "./fixturepy/cycle_a", "fixturepy/cycle_b"}, []string{".", "fixturepy.cycle_a", "fixturepy.cycle_b"}},
+		{languageTypeScript, []string{".", "./src/cycle-a", "src/cycle-b"}, []string{".", "src/cycle-a", "src/cycle-b"}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.language, func(t *testing.T) {
+			for _, prefixed := range []bool{false, true} {
+				rows := make([]archModuleRow, 0, len(tc.rows))
+				for _, p := range tc.rows {
+					if prefixed && p != "." && !strings.HasPrefix(p, "./") {
+						p = "./" + p
+					}
+					rows = append(rows, archModuleRow{Path: p})
+				}
+				mapping, err := mapToModules(tc.language, syntheticArch(rows...), depsGraph{})
+				if err != nil {
+					t.Fatalf("mapToModules: %v", err)
+				}
+				got := make([]string, 0, len(mapping.Modules))
+				for _, m := range mapping.Modules {
+					got = append(got, m.Identity)
+				}
+				if !reflect.DeepEqual(got, tc.want) {
+					t.Errorf("prefixed=%v: identities got %v, want %v", prefixed, got, tc.want)
+				}
+			}
+		})
+	}
 }
 
 func TestMapToModules_RecordedTypeScript(t *testing.T) {
@@ -176,16 +311,7 @@ func TestMapToModules_Deterministic(t *testing.T) {
 }
 
 func syntheticArch(rows ...archModuleRow) archTable {
-	table := archTable{
-		Modules: len(rows),
-		Rows:    rows,
-	}
-	for _, r := range rows {
-		if r.Types > 0 {
-			table.TypedModules++
-		}
-	}
-	return table
+	return archTable{Rows: rows}
 }
 
 func TestMapToModules_AmbiguityRate(t *testing.T) {
@@ -194,7 +320,7 @@ func TestMapToModules_AmbiguityRate(t *testing.T) {
 	// A TypeScript target landing inside the crawl but matching no module
 	// directory: the edge is dropped and ambiguity-rate fires.
 	table := syntheticArch(
-		archModuleRow{Path: "./src", Ca: 0, Ce: 1, Zone: "n/a"},
+		archModuleRow{Path: "./src", Ca: 0, Ce: 1},
 	)
 	deps := depsGraph{
 		Rows: []depsFile{
@@ -244,7 +370,7 @@ func TestMapToModules_WarningProse(t *testing.T) {
 	})
 
 	t.Run("ambiguity rate", func(t *testing.T) {
-		table := syntheticArch(archModuleRow{Path: "./src", Ca: 0, Ce: 1, Zone: "n/a"})
+		table := syntheticArch(archModuleRow{Path: "./src", Ca: 0, Ce: 1})
 		deps := depsGraph{Rows: []depsFile{{Path: "src/index.ts", IncTargets: []string{"./orphan-dir"}}}}
 		mapping, err := mapToModules(languageTypeScript, table, deps)
 		if err != nil {
@@ -263,7 +389,7 @@ func TestMapToModules_PythonAllExternalNoNameResolution(t *testing.T) {
 	// A tree with no internal edges at all: no name-resolved-edges
 	// warning (nothing was resolved), externals counted in Ce only.
 	table := syntheticArch(
-		archModuleRow{Path: "./pkg", Ca: 0, Ce: 0, Zone: "n/a"},
+		archModuleRow{Path: "./pkg", Ca: 0, Ce: 0},
 	)
 	deps := depsGraph{
 		Rows: []depsFile{
@@ -293,8 +419,8 @@ func TestMapToModules_Errors(t *testing.T) {
 
 	t.Run("duplicate identity", func(t *testing.T) {
 		table := syntheticArch(
-			archModuleRow{Path: "./a/b", Zone: "n/a"},
-			archModuleRow{Path: "./a.b", Zone: "n/a"},
+			archModuleRow{Path: "./a/b"},
+			archModuleRow{Path: "./a.b"},
 		)
 		if _, err := mapToModules(languagePython, table, depsGraph{}); err == nil {
 			t.Fatal("got no error, want error for duplicate identity a.b")
@@ -302,7 +428,7 @@ func TestMapToModules_Errors(t *testing.T) {
 	})
 
 	t.Run("deps file outside modules", func(t *testing.T) {
-		table := syntheticArch(archModuleRow{Path: "./pkg", Zone: "n/a"})
+		table := syntheticArch(archModuleRow{Path: "./pkg"})
 		deps := depsGraph{Rows: []depsFile{{Path: "elsewhere/mod.py"}}}
 		if _, err := mapToModules(languagePython, table, deps); err == nil {
 			t.Fatal("got no error, want error for file outside module universe")

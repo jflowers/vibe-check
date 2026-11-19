@@ -25,9 +25,12 @@ func TestLCOM4Scan_FixturePython(t *testing.T) {
 	// adapter's exported-only filter.
 	want := map[string]int{
 		"fixturepy":            6,
+		"fixturepy/alias":      0,
+		"fixturepy/collide":    0,
 		"fixturepy/cycle_a":    0,
 		"fixturepy/cycle_b":    0,
 		"fixturepy/operations": 0,
+		"fixturepy/wide":       0,
 	}
 	if !reflect.DeepEqual(results, want) {
 		t.Errorf("results: got %v, want %v", results, want)
