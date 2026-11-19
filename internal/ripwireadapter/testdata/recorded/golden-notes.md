@@ -1,5 +1,13 @@
 # Hand-Computed ModuleGraph Goldens — `ripwire-adapter` task 1.4
 
+> Revised by `openspec/changes/bump-ripwire-pin` task 6.1: recordings
+> re-captured from the provisional Phase A binary (see `../README.md`), and
+> the Python golden regenerated for the `wide`/`alias`/`collide` fixture
+> packages. The TypeScript golden is unchanged (its coupling, types, and
+> cycle are identical under the new recordings). Derived values were again
+> produced by `metrics.Compute*` in a scratch program outside the
+> repository and the result validated with `metrics.Validate`.
+
 `python/golden.json` and `typescript/golden.json` in this directory are the
 hand-computed, pinned acceptance targets for analyzing the two fixture
 projects (`../python/`, `../typescript/`) through the ripwire adapter. Tasks
@@ -57,8 +65,8 @@ contract is the code set.
 | Cycles | directory-grain SCC over `deps.xml` edges (D7), corroborated by TS `<cycles>` |
 | Warning codes | design.md D4/D6/D7, Operational Notes, and the change's spec deltas |
 
-Binary provenance for the recordings: ripwire `0.6.9`, `built_from=bedc0cdcf`
-(the change pins the `bedc0cd` prefix) — see `README.md` in this directory.
+Binary provenance for the recordings: see `../README.md` ("Binary provenance").
+The goldens depend only on the recorded numbers, never on the version line.
 
 ---
 
@@ -67,8 +75,11 @@ Binary provenance for the recordings: ripwire `0.6.9`, `built_from=bedc0cdcf`
 ### C1 — Module identity and path normalization (D4)
 
 Python uses dot-separated package style, TypeScript slash-separated style,
-`Name` = last path segment. The arch table reports `./`-prefixed paths; the
-adapter strips the leading `./` (and, for Python, converts `/` → `.`).
+`Name` = last path segment. The pinned release prints root-relative paths
+without a prefix (`fixturepy/cycle_a`); 0.6.9 printed them `./`-prefixed.
+The adapter strips an optional leading `./` (and, for Python, converts
+`/` → `.`), so both forms map identically (`mapping_test.go`
+`TestMapToModules_ArchPathForms`). The table below shows the 0.6.9 form.
 
 | arch.txt path | golden `path` | golden `name` |
 |---------------|---------------|---------------|
@@ -128,8 +139,9 @@ extension is a source extension (`.py`, `.ts`, `.tsx`, `.js`, `.jsx`).
 Config files the crawl indexes at a TypeScript root (`package.json`,
 `tsconfig.json`) are excluded, so a config-only module (TS `.`) reports
 **0** — the honest count of its source lines, not the "not determined"
-sentinel. Python: fixturepy = 1 + 94 = **95**, cycle_a = 10 + 6 = **16**,
-cycle_b = **16**, operations = **1**; TS: `.` = **0** (config only),
+sentinel. Python: fixturepy = 1 + 94 = **95**, alias = 1 + 8 = **9**,
+collide = 1 + 8 + 6 = **15**, cycle_a = 10 + 6 = **16**, cycle_b = **16**,
+operations = **1**, wide = 1 + 8 = **9**; TS: `.` = **0** (config only),
 src = **60** (`models.ts`; an earlier draft of this ledger said 92, an
 arithmetic slip that folded in the cycle directories' 32), cycle-a/b =
 **16**. ripwire's `loc` is a *physical* line count, a different
@@ -167,23 +179,27 @@ lexicographically; the single cycle per graph needs no inter-cycle ordering.
 
 ## Python golden — value-by-value ledger
 
-Module set = the four `<m>` rows of `arch.txt` (`modules="4"`).
-`operations/build` is **absent everywhere** (ripwire hard-prunes
-denylist-named directories; `deps.xml` `health files="7"` against 9 fixture
-`.py` files) — that absence is exactly what the `denylist-pruned` warning
-documents.
+Module set = the seven `<m>` rows of `arch.txt`. `operations/build` is
+**absent everywhere** (ripwire hard-prunes denylist-named directories;
+`deps.xml` `health files="14"` against 16 fixture `.py` files) and is now
+also disclosed by ripwire's `<pruned_packages>` — together the source of the
+`denylist-pruned` warning.
 
 | path | ca | ce | expTypes | absTypes | I | A | D | lcom | zone |
 |------|----|----|----------|----------|---|---|---|------|------|
-| `fixturepy` | 0 | 0 | 4 | 1 | 0 | 0.25 | 0.75 | 6 | normal |
-| `fixturepy.cycle_a` | 1 | 1 | 0 | 0 | 0.5 | 0 | 0.5 | 0 | normal |
-| `fixturepy.cycle_b` | 1 | 1 | 0 | 0 | 0.5 | 0 | 0.5 | 0 | normal |
+| `fixturepy` | 1 | 0 | 4 | 1 | 0 | 0.25 | 0.75 | 6 | normal |
+| `fixturepy.alias` | 0 | 1 | 0 | 0 | 1 | 0 | 0 | 0 | main-sequence |
+| `fixturepy.collide` | 0 | 0 | 0 | 0 | 0 | 0 | 1 | 0 | zone-of-pain |
+| `fixturepy.cycle_a` | 2 | 1 | 0 | 0 | 0.3333333333333333 | 0 | 0.6666666666666667 | 0 | normal |
+| `fixturepy.cycle_b` | 2 | 1 | 0 | 0 | 0.3333333333333333 | 0 | 0.6666666666666667 | 0 | normal |
 | `fixturepy.operations` | 0 | 0 | 0 | 0 | 0 | 0 | 1 | 0 | zone-of-pain |
+| `fixturepy.wide` | 0 | 2 | 0 | 0 | 1 | 0 | 0 | 0 | main-sequence |
 
 ### `fixturepy`
 
-- **ca=0, ce=0** — `arch.txt` `<m path="./fixturepy" ca="0" ce="0">` (table
-  authoritative). Note `models.py` imports `abc` (stdlib): that edge is
+- **ca=1, ce=0** — `arch.txt` `<m path="fixturepy" ca="1" ce="0">` (table
+  authoritative). The afferent edge is `wide`'s `from fixturepy import
+  cycle_b`, which also reaches `fixturepy/__init__.py`. Note `models.py` imports `abc` (stdlib): that edge is
   out-of-corpus, so the table reports `ce=0` and `cc.json` reports
   `fan_out=0` for `models.py` ("In-corpus files this file depends on").
   D6's "count external targets in Ce only" is a no-op on this fixture — no
@@ -196,8 +212,7 @@ documents.
   deliberately **not** used (D3/D8: ripwire's Python abstractness is
   structurally zero; its `types=5` counts all five classes including
   `_Internal`).
-- **I** = `ComputeInstability(0,0)` = 0 (zero-denominator convention:
-  isolated modules are maximally stable). Agrees with arch `I="0.00"`.
+- **I** = `ComputeInstability(1,0)` = 0. Agrees with arch `I="0.00"`.
 - **A** = `ComputeAbstractness(1,4)` = 0.25.
 - **D** = `ComputeDistance(0.25, 0)` = |0.25 + 0 − 1| = 0.75.
 - **lcom=6** — class ledger below.
@@ -224,14 +239,20 @@ Module total: 1 + 2 + 1 + 1 + 1 = **6**.
 
 ### `fixturepy.cycle_a` / `fixturepy.cycle_b`
 
-- **ca=1, ce=1** — arch table (each package imports the other's `api`).
+- **ca=2, ce=1** — arch table. Each package imports the other's `api`
+  (ce=1 each). The second afferent edge differs: `cycle_a` gains `alias`'s
+  `import fixturepy.cycle_a.api as ca` (gap 2); `cycle_b` gains `wide`'s
+  `from fixturepy import cycle_b` (gap 1). Only `cycle_a`'s is visible in
+  the adapter's name-resolved edge set (`--deps` records `wide`'s import
+  as written, `"fixturepy"`); Ca comes from the table, so the golden is
+  unaffected.
 - **exportedTypes=0, abstractTypes=0** — no class declarations anywhere in
   either package (`__init__.py` is an import + docstring; `api.py` defines a
   module-level function). A = `ComputeAbstractness(0,0)` = 0 (the 0/0
   convention — matches goadapter's behavior for untyped packages).
-- **I** = 1/(1+1) = 0.5 (agrees with arch `I="0.50"`). **D** = |0 + 0.5 − 1|
-  = 0.5 (agrees with arch `D="0.50"`). **lcom** = 0 (no class-bound
-  methods). **zone** = normal (A < 0.2 but I = 0.5 is not < 0.2).
+- **I** = 1/(2+1) = 0.3333333333333333 (arch `I="0.33"`). **D** =
+  |0 + 1/3 − 1| = 0.6666666666666667 (arch `D="0.67"`). **lcom** = 0 (no
+  class-bound methods). **zone** = normal (A < 0.2 but I ≥ 0.2).
 - Divergence: arch `zone="n/a"` (ripwire excludes `types=0` modules from
   its zone corners). `metrics.ComputeZone` has no n/a state — untyped modules
   get A = 0 via the 0/0 convention and classify normally.
@@ -245,6 +266,26 @@ Module total: 1 + 2 + 1 + 1 + 1 = **6**.
   `zone_pain="1"` aggregate counted *fixturepy* (under its A=0.00); under the
   golden's conventions the zone-of-pain module is *operations*. Different A
   sources, not a contradiction.
+
+### `fixturepy.wide` / `fixturepy.alias` / `fixturepy.collide`
+
+Each holds an `__init__.py` (docstring, 1 line) and a `consumer.py` (8
+lines) with one module-level function; `collide` also holds `logging.py`
+(6 lines, one module-level function). No classes → **types 0/0, A=0,
+lcom=0**.
+
+- **wide: ca=0, ce=2** — `from fixturepy import cycle_b` resolves to
+  `fixturepy/__init__.py` and `cycle_b/__init__.py` (ripwire#478 gap 1,
+  redhat-et/ripwire#533). **I=1, D=0 → main-sequence.**
+- **alias: ca=0, ce=1** — `import fixturepy.cycle_a.api as ca` resolves to
+  `cycle_a/api.py` (gap 2, redhat-et/ripwire#530). **I=1, D=0 →
+  main-sequence.**
+- **collide: ca=0, ce=0** — in-package `import logging` binds the stdlib
+  module, not the sibling `logging.py` (gap 4, Train 44). **I=0, D=1 →
+  zone-of-pain** (as for every isolated untyped module).
+
+These three rows are the golden's pin on the adopted import fixes: a pin
+change that alters their resolution changes a golden value.
 
 ### Cycle
 
@@ -272,7 +313,7 @@ exists.
 | `cycle-approximation` | cycles present; membership approximate (D7, spec cycle requirement) |
 | `denylist-pruned` | `operations/build` hard-pruned (Python-only; spec denylist requirement) |
 | `directory-as-module` | every graph carries it (D4) |
-| `error-budget` | Python measured budgets: 1.9% lost / 2.2% spurious edges (D6, spec error-budget requirement) |
+| `error-budget` | Python measured budgets for the pinned release (`budget.go`; bump-ripwire-pin design D6) |
 | `name-resolved-edges` | the Python import graph is name-based (arch note "name-based deps"; `<inc>` targets are dotted module names like `fixturepy.cycle_b.api`, resolved by name to directories — D6) |
 | `unsupported-metric` | duplication undeclared for the language; spec capability-gating requires a warning naming duplication as unavailable |
 
@@ -281,7 +322,9 @@ ambiguity encountered — the R4 triggers are absent from this fixture);
 `zero-coupling-guard` (the crawl yields dependency edges — the guard's
 precondition "no edges while source files exist" is false);
 `ts-abstractness-bias` (Python graph); `parse-error` (every fixture file is
-syntactically valid).
+syntactically valid); `coupling-floor` (no `zone="unknown"` row — the
+`python-mixed` recordings exercise it instead, asserted in
+`TestIntegration_MixedLanguagePipeline`, without a golden).
 
 ---
 
@@ -372,7 +415,7 @@ directory-grain SCC matches the listing, exactly the D7 corroboration path.
 |------|-----------------|
 | `cycle-approximation` | cycles present (D7, spec cycle requirement) |
 | `directory-as-module` | every graph carries it (D4) |
-| `error-budget` | TypeScript measured budget: 0.16% unresolved imports (D6, spec error-budget requirement) |
+| `error-budget` | TypeScript measured budget for the pinned release (`budget.go`; bump-ripwire-pin design D6) |
 | `ts-abstractness-bias` | `abstract class` undercount (conservative) + type-alias denominator inflation (spec TS-abstractness requirement) |
 | `unsupported-metric` | duplication undeclared (spec capability-gating requirement) |
 
@@ -381,14 +424,14 @@ the TS crawl root); `name-resolved-edges` (TS fixture imports are relative
 paths — `<inc t="../cycle-b">` — not name-resolved; D6 fires this code only
 when name resolution is actually used); `ambiguity-rate` (no ambiguity
 encountered); `zero-coupling-guard` (edges exist); `parse-error` (all files
-parse clean).
+parse clean); `coupling-floor` (no `zone="unknown"` row).
 
 ---
 
 ## Cross-check summary: golden vs `arch.txt`
 
-Ca, Ce, and I agree with `arch.txt` for **all eight modules** (no
-divergences). A agrees everywhere except the one deliberate Python
+Ca, Ce, and I agree with `arch.txt` for **all eleven modules** (no
+divergences; arch prints I to two decimals). A agrees everywhere except the one deliberate Python
 light-parse substitution. D and zone diverge only downstream of A or of
 ComputeZone's boundary semantics:
 
@@ -398,7 +441,8 @@ ComputeZone's boundary semantics:
 | py `fixturepy` | D | 1.00 | 0.75 | derives from light-parse A |
 | py `fixturepy` | zone | pain | normal | derives from light-parse A |
 | py `cycle_a`, `cycle_b` | zone | n/a | normal | ComputeZone has no n/a; untyped → A=0 via 0/0 |
-| py `operations` | zone | n/a | zone-of-pain | A=0, I=0, D=1 under ComputeZone |
+| py `alias`, `wide` | zone | n/a | main-sequence | untyped, I=1, D=0 under ComputeZone |
+| py `operations`, `collide` | zone | n/a | zone-of-pain | A=0, I=0, D=1 under ComputeZone |
 | ts `.` | zone | n/a | zone-of-pain | same |
 | ts `src` | D | 0.20 | 0.19999999999999996 | IEEE-754: 1−0.8 is one ULP below 0.2 |
 | ts `src` | zone | ok | main-sequence | d < 0.2 holds in float64 |
