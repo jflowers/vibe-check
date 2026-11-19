@@ -8,7 +8,9 @@ import (
 	"testing"
 )
 
-// Version-pin tests — openspec/changes/ripwire-adapter task 2.2.
+// Version-pin tests — openspec/changes/ripwire-adapter task 2.2, revised by
+// openspec/changes/bump-ripwire-pin tasks 6.2–6.3 to reference the pin
+// constants instead of literal versions.
 //
 // They exercise the fail-closed pin through the production path
 // (Adapter.Analyze → exec.LookPath → --version subprocess → parse →
@@ -19,7 +21,31 @@ import (
 const (
 	wrongVersionLine = "ripwire 0.6.8 (Release, AppleClang 21.0.0.21000101, emit=std::print, built_from=deadbeef00)"
 	garbageLine      = "totally not a version string"
+	// devBuildLine is the --version line of a ripwire main source build
+	// (the Phase A capture binary of openspec/changes/bump-ripwire-pin).
+	devBuildLine = "ripwire 0.6.10-dev.65+g1edb6fd6a (Release, AppleClang 21.0.0.21000334, emit=std::print, built_from=1edb6fd6a)"
 )
+
+// recordedCommit returns the built_from= commit of a recorded version line.
+func recordedCommit(t *testing.T, line []byte) string {
+	t.Helper()
+	_, after, ok := strings.Cut(string(line), "built_from=")
+	if !ok {
+		t.Fatalf("recorded version line %q has no built_from=", line)
+	}
+	return strings.TrimRight(strings.TrimSpace(after), ")")
+}
+
+// divergingCommit returns a commit equal to prefix except for its last
+// character, so it diverges inside the pinned prefix.
+func divergingCommit(prefix string) string {
+	last := prefix[len(prefix)-1]
+	replacement := byte('0')
+	if last == '0' {
+		replacement = '1'
+	}
+	return prefix[:len(prefix)-1] + string(replacement)
+}
 
 func TestAnalyze_PinGate_AbsentBinary(t *testing.T) {
 	// A PATH with no ripwire (real or fake) anywhere on it.
@@ -32,7 +58,7 @@ func TestAnalyze_PinGate_AbsentBinary(t *testing.T) {
 	if !errors.Is(err, ErrRipwireAbsent) {
 		t.Fatalf("absent binary: got error %v, want ErrRipwireAbsent", err)
 	}
-	for _, want := range []string{"ripwire", ripwireInstallURL, "0.6.9", "bedc0cd"} {
+	for _, want := range []string{"ripwire", ripwireInstallURL, pinnedRipwireVersion, pinnedRipwireCommit} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("absent-binary guidance: error %q does not name %q", err, want)
 		}
@@ -56,7 +82,7 @@ func TestAnalyze_PinGate_ThroughProductionPath(t *testing.T) {
 			name:      "wrong version fails closed",
 			variant:   "wrong-version",
 			wantError: ErrRipwireVersionMismatch,
-			wantText:  []string{"0.6.9", "bedc0cd", "0.6.8", "deadbeef00"},
+			wantText:  []string{pinnedRipwireVersion, pinnedRipwireCommit, "0.6.8", "deadbeef00"},
 		},
 		{
 			name:      "garbage version fails closed",
@@ -116,8 +142,14 @@ func TestParseRipwireVersion(t *testing.T) {
 		{
 			name:        "recorded validated line",
 			output:      string(recorded),
-			wantVersion: "0.6.9",
-			wantCommit:  "bedc0cdcf",
+			wantVersion: pinnedRipwireVersion,
+			wantCommit:  recordedCommit(t, recorded),
+		},
+		{
+			name:        "development build line",
+			output:      devBuildLine,
+			wantVersion: "0.6.10-dev.65+g1edb6fd6a",
+			wantCommit:  "1edb6fd6a",
 		},
 		{
 			name:        "wrong version line still parses",
@@ -137,7 +169,7 @@ func TestParseRipwireVersion(t *testing.T) {
 		},
 		{
 			name:    "missing built_from commit",
-			output:  "ripwire 0.6.9 (Release)",
+			output:  "ripwire 1.2.3 (Release)",
 			wantErr: true,
 		},
 		{
@@ -181,16 +213,19 @@ func TestCommitPrefixMatch(t *testing.T) {
 		commit  string
 		want    bool
 	}{
-		{"recorded commit extends pin", "0.6.9", "bedc0cdcf", true},
-		{"exact pin commit", "0.6.9", "bedc0cd", true},
-		// bedc0cdff also extends the 7-character pinned prefix; the
-		// prefix pin accepts it (a collision needs 28 matching bits,
-		// and the exact binary is additionally sha256-verified in the
-		// testdata README).
-		{"another commit extending the pin prefix", "0.6.9", "bedc0cdff", true},
-		{"commit diverging inside the pin prefix", "0.6.9", "bedc0cef", false},
-		{"unrelated commit", "0.6.9", "deadbeef00", false},
-		{"right commit wrong version", "0.6.8", "bedc0cdcf", false},
+		{"commit extending the pin prefix", pinnedRipwireVersion, pinnedRipwireCommit + "a", true},
+		{"exact pin commit", pinnedRipwireVersion, pinnedRipwireCommit, true},
+		// Any commit extending the 7-character pinned prefix is accepted
+		// (a collision needs 28 matching bits, and the exact release
+		// binary is additionally sha256-verified in the testdata README).
+		{"another commit extending the pin prefix", pinnedRipwireVersion, pinnedRipwireCommit + "ff", true},
+		{"commit diverging inside the pin prefix", pinnedRipwireVersion, divergingCommit(pinnedRipwireCommit), false},
+		{"unrelated commit", pinnedRipwireVersion, "deadbeef00", false},
+		{"right commit wrong version", "0.6.8", pinnedRipwireCommit + "a", false},
+		// bump-ripwire-pin spec: the previous pin and development builds
+		// are mismatches.
+		{"previous pin refused", "0.6.9", "bedc0cdcf", false},
+		{"development build refused", "0.6.10-dev.65+g1edb6fd6a", "1edb6fd6a", false},
 	}
 
 	for _, tc := range cases {

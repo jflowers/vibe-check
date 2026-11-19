@@ -13,10 +13,13 @@ import (
 )
 
 // crawlDenylistNames are the directory names ripwire hard-prunes from every
-// crawl (validated against ripwire 0.6.9 in task 1.2: a fixture
+// crawl (validated against the pinned ripwire release: a fixture
 // operations/build directory is absent from all recorded outputs). The
 // adapter's pre-check mirrors this set so users understand why source code
-// they can see contributes no metrics.
+// they can see contributes no metrics; ripwire's own <pruned_packages>
+// disclosure is unioned in (openspec/changes/bump-ripwire-pin design D5) so
+// an upstream denylist change the list has not caught up with still
+// surfaces for real packages.
 var crawlDenylistNames = []string{
 	"build",
 	"dist",
@@ -45,12 +48,17 @@ var denylistSourceExtensions = map[string]bool{
 // pre-check.
 const warningDenylistPruned = "denylist-pruned"
 
-// detectDenylistPruned walks the crawl root and reports the denylist-named,
-// source-bearing directories that ripwire will prune from the crawl. It
-// returns at most one Warning (code "denylist-pruned") whose message lists
-// every matched directory, root-relative and sorted; a clean tree yields no
-// warnings. A warning is purely informational — ripwire prunes these
-// directories regardless, and the analysis proceeds.
+// detectDenylistPruned reports the source directories ripwire prunes from
+// the crawl: the union of the denylist-named, source-bearing directories
+// found by walking the crawl root and the package paths ripwire itself
+// lists under <pruned_packages> (ripwirePruned, crawl-root-relative,
+// slash-separated; ripwireCount is ripwire's exact count=, which may
+// exceed the listed paths because ripwire caps the listing). It returns at
+// most one Warning (code "denylist-pruned") whose message lists every
+// directory once, root-relative, slash-separated, and sorted, and states
+// ripwire's total when its listing was partial; with no directory from
+// either source it returns no warnings. A warning is purely informational —
+// ripwire prunes these directories regardless, and the analysis proceeds.
 //
 // Source-bearing means the directory subtree contains at least one file
 // with a language extension (recursive: a build/ dir whose sources live one
@@ -58,7 +66,7 @@ const warningDenylistPruned = "denylist-pruned"
 // subtrees are skipped rather than failing the analysis — one locked
 // directory in a user tree must not abort a crawl — while every other walk
 // error fails closed as a wrapped error.
-func detectDenylistPruned(crawlRoot string) ([]metrics.Warning, error) {
+func detectDenylistPruned(crawlRoot string, ripwirePruned []string, ripwireCount int) ([]metrics.Warning, error) {
 	info, err := os.Stat(crawlRoot)
 	if err != nil {
 		return nil, fmt.Errorf("denylist pre-check: stat %s: %w", crawlRoot, err)
@@ -92,7 +100,7 @@ func detectDenylistPruned(crawlRoot string) ([]metrics.Warning, error) {
 			return nil
 		}
 		if dirContainsSource(path) {
-			pruned = append(pruned, relativeToRoot(crawlRoot, path))
+			pruned = append(pruned, filepath.ToSlash(relativeToRoot(crawlRoot, path)))
 			// Do not descend: everything beneath is pruned with it,
 			// and nested denylist names under a pruned dir are
 			// noise.
@@ -103,19 +111,38 @@ func detectDenylistPruned(crawlRoot string) ([]metrics.Warning, error) {
 	if err != nil {
 		return nil, fmt.Errorf("denylist pre-check: walk %s: %w", crawlRoot, err)
 	}
-	if len(pruned) == 0 {
-		return nil, nil
-	}
-	sort.Strings(pruned)
+	return denylistPrunedWarning(pruned, ripwirePruned, ripwireCount), nil
+}
 
-	warning := metrics.Warning{
-		Code: warningDenylistPruned,
-		Message: fmt.Sprintf(
-			"ripwire prunes source-bearing denylist directories from the crawl: %s",
-			strings.Join(pruned, ", "),
-		),
+// denylistPrunedWarning builds the denylist-pruned warning from the
+// pre-check's directories and ripwire's disclosure: the sorted,
+// de-duplicated union, plus ripwire's total when it listed fewer paths than
+// it counted. Both inputs empty yields no warning.
+func denylistPrunedWarning(preCheck, ripwirePruned []string, ripwireCount int) []metrics.Warning {
+	seen := make(map[string]bool, len(preCheck)+len(ripwirePruned))
+	union := make([]string, 0, len(preCheck)+len(ripwirePruned))
+	for _, dir := range append(append([]string(nil), preCheck...), ripwirePruned...) {
+		if !seen[dir] {
+			seen[dir] = true
+			union = append(union, dir)
+		}
 	}
-	return []metrics.Warning{warning}, nil
+	if len(union) == 0 {
+		return nil
+	}
+	sort.Strings(union)
+
+	message := fmt.Sprintf(
+		"ripwire prunes source-bearing denylist directories from the crawl: %s",
+		strings.Join(union, ", "),
+	)
+	if ripwireCount > len(ripwirePruned) {
+		message += fmt.Sprintf(
+			"; ripwire reports %d pruned packages in total and lists only %d (run ripwire --skipped for all)",
+			ripwireCount, len(ripwirePruned),
+		)
+	}
+	return []metrics.Warning{{Code: warningDenylistPruned, Message: message}}
 }
 
 // errNotDirectory reports a crawl root that exists but is not a directory.

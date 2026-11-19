@@ -14,6 +14,7 @@ const (
 	warningDirectoryAsModule = "directory-as-module"
 	warningNameResolvedEdges = "name-resolved-edges"
 	warningAmbiguityRate     = "ambiguity-rate"
+	warningCouplingFloor     = "coupling-floor"
 )
 
 // mappedModule is one directory-grain module after identity mapping and
@@ -39,6 +40,13 @@ type mappedModule struct {
 	// universe (external dependencies): counted in Ce only, they add no
 	// module and no afferent coupling anywhere.
 	ExternalOut int
+	// CouplingFloor reports that ripwire marked the module zone="unknown":
+	// Ca and Ce are lower bounds, not exact counts (openspec/changes/
+	// bump-ripwire-pin design D3).
+	CouplingFloor bool
+	// NoFileEdges lists the languages ripwire named for a CouplingFloor
+	// module, sorted.
+	NoFileEdges []string
 }
 
 // moduleEdge is one deduplicated directory-grain dependency edge between
@@ -55,8 +63,9 @@ type moduleMapping struct {
 	// Edges deduplicated per (From, To) pair, sorted lexicographically.
 	Edges []moduleEdge
 	// Warnings carries directory-as-module (always), name-resolved-edges
-	// (Python dotted-target resolution), and ambiguity-rate (targets that
-	// land inside the crawl but match no module).
+	// (Python dotted-target resolution), ambiguity-rate (targets that
+	// land inside the crawl but match no module), and coupling-floor
+	// (modules whose Ca/Ce ripwire reports only as floors).
 	Warnings []metrics.Warning
 }
 
@@ -95,6 +104,9 @@ func mapToModules(language string, table archTable, deps depsGraph) (moduleMappi
 			Ce:       row.Ce,
 			Types:    row.Types,
 			Abstract: row.Abstract,
+
+			CouplingFloor: row.CouplingFloor,
+			NoFileEdges:   row.NoFileEdges,
 		})
 	}
 	sort.Slice(modules, func(i, j int) bool { return modules[i].Identity < modules[j].Identity })
@@ -107,6 +119,9 @@ func mapToModules(language string, table archTable, deps depsGraph) (moduleMappi
 		Modules:  modules,
 		Edges:    []moduleEdge{},
 		Warnings: []metrics.Warning{directoryAsModuleWarning()},
+	}
+	if floor, ok := couplingFloorWarning(modules); ok {
+		mapping.Warnings = append(mapping.Warnings, floor)
 	}
 
 	// Resolve every include target to a directory-grain edge, external,
@@ -272,4 +287,44 @@ func directoryAsModuleWarning() metrics.Warning {
 		Message: "modules are mapped at directory grain: coupling between files in the same " +
 			"directory is intra-module and invisible to the graph",
 	}
+}
+
+// couplingFloorWarning builds the coupling-floor warning when at least one
+// module is flagged CouplingFloor: one warning naming the flagged module
+// identities and the union of their no_file_edges languages, both sorted,
+// so the message is deterministic. ok is false when no module is flagged.
+// The floors still feed metrics.Compute*; the warning (which forces status
+// partial) is what keeps a consumer from reading them as exact.
+func couplingFloorWarning(modules []mappedModule) (metrics.Warning, bool) {
+	var identities []string
+	langSet := map[string]bool{}
+	for _, m := range modules {
+		if !m.CouplingFloor {
+			continue
+		}
+		identities = append(identities, m.Identity)
+		for _, lang := range m.NoFileEdges {
+			langSet[lang] = true
+		}
+	}
+	if len(identities) == 0 {
+		return metrics.Warning{}, false
+	}
+	sort.Strings(identities)
+	langs := make([]string, 0, len(langSet))
+	for lang := range langSet {
+		langs = append(langs, lang)
+	}
+	sort.Strings(langs)
+	langText := "unlisted languages"
+	if len(langs) > 0 {
+		langText = strings.Join(langs, ", ")
+	}
+	return metrics.Warning{
+		Code: warningCouplingFloor,
+		Message: fmt.Sprintf(
+			"ripwire resolves almost no imports for %s; coupling for %d module(s) is a floor, not an exact count: %s",
+			langText, len(identities), strings.Join(identities, ", "),
+		),
+	}, true
 }

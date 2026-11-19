@@ -22,9 +22,12 @@ func TestPythonAbstractnessScan_Fixture(t *testing.T) {
 
 	want := map[string]lightParseResult{
 		"fixturepy":            {AbstractTypes: 1, ExportedTypes: 4},
+		"fixturepy/alias":      {},
+		"fixturepy/collide":    {},
 		"fixturepy/cycle_a":    {},
 		"fixturepy/cycle_b":    {},
 		"fixturepy/operations": {},
+		"fixturepy/wide":       {},
 	}
 	if !reflect.DeepEqual(results, want) {
 		t.Errorf("results: got %v, want %v", results, want)

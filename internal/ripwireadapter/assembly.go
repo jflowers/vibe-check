@@ -22,10 +22,16 @@ const warningUnsupportedMetric = "unsupported-metric"
 // beyond the window are absent from the edge data.
 const warningDepsWindowTruncated = "deps-window-truncated"
 
+// depsWindowLimit is the --limit the adapter passes to --deps (the capture
+// convention). It sizes the file-row window and, in the pinned ripwire
+// release, also the <cycles> listing: ripwire shows max(20, --limit)
+// cycles (redhat-et/ripwire#479 item 2).
+const depsWindowLimit = 1000
+
 // depsWindowWarning returns the truncation warning for a --deps listing
 // whose window did not cover every dependency-capable file, or nil when
-// the window covered the corpus. The adapter requests --limit=1000 per
-// crawl (the capture convention); a larger corpus needs the edges the
+// the window covered the corpus. The adapter requests --limit=depsWindowLimit
+// per crawl (the capture convention); a larger corpus needs the edges the
 // listing is missing, so the graph is partial rather than silently
 // incomplete.
 func depsWindowWarning(deps depsGraph) []metrics.Warning {
@@ -44,8 +50,8 @@ func depsWindowWarning(deps depsGraph) []metrics.Warning {
 // minimalArchRules is the rules file content the adapter generates for
 // its --arch invocation. The --arch mode requires a rules file, but the
 // adapter consumes only the Martin metrics table, which layer and deny
-// rules do not alter. This was validated against the pinned ripwire
-// 0.6.9: a comment-only rules file yields a byte-identical <metrics>
+// rules do not alter. This is validated against the pinned ripwire
+// release: a comment-only rules file yields a byte-identical <metrics>
 // table (only the unused layers count attribute differs), so the adapter
 // ships no fixture-specific rules and enforces nothing.
 const minimalArchRules = `# vibe-check generated arch rules: intentionally empty.
@@ -114,7 +120,7 @@ func (a *Adapter) Analyze(ctx context.Context, projectPath string) (*metrics.Mod
 	if err != nil {
 		return nil, fmt.Errorf("ripwire adapter: arch crawl of %s: %w", projectPath, err)
 	}
-	depsOut, err := runner.run(ctx, crawlRoot, append(scope.ripwireArgs(), "--deps", "--limit=1000", "--no-cache")...)
+	depsOut, err := runner.run(ctx, crawlRoot, append(scope.ripwireArgs(), "--deps", fmt.Sprintf("--limit=%d", depsWindowLimit), "--no-cache")...)
 	if err != nil {
 		return nil, fmt.Errorf("ripwire adapter: deps crawl of %s: %w", projectPath, err)
 	}
@@ -165,7 +171,7 @@ func (a *Adapter) Analyze(ctx context.Context, projectPath string) (*metrics.Mod
 		return nil, fmt.Errorf("ripwire adapter: %w", err)
 	}
 	guardWarnings := zeroCouplingGuard(len(mapping.Edges), sourceFileCount)
-	denylistWarnings, err := detectDenylistPruned(crawlRoot)
+	denylistWarnings, err := detectDenylistPruned(crawlRoot, table.PrunedPackages, table.PrunedPackageCount)
 	if err != nil {
 		return nil, fmt.Errorf("ripwire adapter: denylist pre-check of %s: %w", projectPath, err)
 	}

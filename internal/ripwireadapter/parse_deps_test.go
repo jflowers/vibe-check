@@ -7,8 +7,8 @@ import (
 )
 
 // --deps and cc.json parser tests — openspec/changes/ripwire-adapter
-// task 4.2. They pin the parsers against the recorded ripwire 0.6.9
-// outputs: exact edge sets, fan-in/out values, cycles listing, and paging
+// task 4.2. They pin the parsers against the recorded outputs of the
+// pinned ripwire release: exact edge sets, fan-in/out values, cycles listing, and paging
 // attributes.
 
 func TestParseDepsOutput_RecordedPython(t *testing.T) {
@@ -20,34 +20,39 @@ func TestParseDepsOutput_RecordedPython(t *testing.T) {
 		t.Fatalf("parseDepsOutput: %v", err)
 	}
 
-	if graph.Files != 3 || graph.Shown != 3 || graph.Total != 3 || graph.Capped != 0 || graph.HasMore != 0 {
-		t.Errorf("paging: got files=%d shown=%d total=%d capped=%d has_more=%d, want 3/3/3/0/0",
+	if graph.Files != 6 || graph.Shown != 6 || graph.Total != 6 || graph.Capped != 0 || graph.HasMore != 0 {
+		t.Errorf("paging: got files=%d shown=%d total=%d capped=%d has_more=%d, want 6/6/6/0/0",
 			graph.Files, graph.Shown, graph.Total, graph.Capped, graph.HasMore)
 	}
-	if graph.Limit != 1000 || graph.Offset != 0 || graph.NextOffset != 3 {
-		t.Errorf("paging window: got limit=%d offset=%d next_offset=%d, want 1000/0/3",
+	if graph.Limit != 1000 || graph.Offset != 0 || graph.NextOffset != 6 {
+		t.Errorf("paging window: got limit=%d offset=%d next_offset=%d, want 1000/0/6",
 			graph.Limit, graph.Offset, graph.NextOffset)
 	}
 	if graph.Root != "." {
 		t.Errorf("root: got %q, want %q", graph.Root, ".")
 	}
 
-	if graph.Health.Files != 7 || graph.Health.DepFiles != 7 {
-		t.Errorf("health: got files=%d dep_files=%d, want 7/7", graph.Health.Files, graph.Health.DepFiles)
+	if graph.Health.Files != 14 || graph.Health.DepFiles != 14 {
+		t.Errorf("health: got files=%d dep_files=%d, want 14/14", graph.Health.Files, graph.Health.DepFiles)
 	}
-	if graph.Health.CCD != 9 || graph.Health.ACD != 1.3 || graph.Health.NCCD != 0.53 {
-		t.Errorf("health: got ccd=%d acd=%v nccd=%v, want 9/1.3/0.53", graph.Health.CCD, graph.Health.ACD, graph.Health.NCCD)
+	if graph.Health.CCD != 20 || graph.Health.ACD != 1.4 || graph.Health.NCCD != 0.45 {
+		t.Errorf("health: got ccd=%d acd=%v nccd=%v, want 20/1.4/0.45", graph.Health.CCD, graph.Health.ACD, graph.Health.NCCD)
 	}
 	if graph.Health.Shape != "horizontal" {
 		t.Errorf("health shape: got %q, want horizontal", graph.Health.Shape)
 	}
 
-	if len(graph.Godfiles) != 2 {
-		t.Fatalf("godfiles: got %d, want 2", len(graph.Godfiles))
+	// cycle_b/__init__.py's afferent edge comes from the wide-form
+	// `from fixturepy import cycle_b` in wide/consumer.py: ripwire resolves
+	// it, but that file's <inc t=> records only "fixturepy" (as written).
+	if len(graph.Godfiles) != 4 {
+		t.Fatalf("godfiles: got %d, want 4", len(graph.Godfiles))
 	}
 	wantGod := map[string]int{
-		"fixturepy/cycle_a/api.py": 1,
-		"fixturepy/cycle_b/api.py": 1,
+		"fixturepy/cycle_a/api.py":      2,
+		"fixturepy/__init__.py":         1,
+		"fixturepy/cycle_b/__init__.py": 1,
+		"fixturepy/cycle_b/api.py":      1,
 	}
 	for _, g := range graph.Godfiles {
 		if want, ok := wantGod[g.Path]; !ok || g.Afferent != want {
@@ -60,10 +65,14 @@ func TestParseDepsOutput_RecordedPython(t *testing.T) {
 	}
 
 	wantFiles := map[string][]string{
+		"fixturepy/wide/consumer.py":    {"fixturepy"},
+		"fixturepy/alias/consumer.py":   {"fixturepy.cycle_a.api"},
 		"fixturepy/cycle_a/__init__.py": {"fixturepy.cycle_b.api"},
 		"fixturepy/cycle_b/__init__.py": {"fixturepy.cycle_a.api"},
+		"fixturepy/collide/consumer.py": {"logging"},
 		"fixturepy/models.py":           {"abc"},
 	}
+	wantAfferent := map[string]int{"fixturepy/cycle_b/__init__.py": 1}
 	if len(graph.Rows) != len(wantFiles) {
 		t.Fatalf("files: got %d, want %d", len(graph.Rows), len(wantFiles))
 	}
@@ -81,8 +90,8 @@ func TestParseDepsOutput_RecordedPython(t *testing.T) {
 				t.Errorf("%s: inc[%d]: got %q, want %q (verbatim)", f.Path, i, f.IncTargets[i], target)
 			}
 		}
-		if f.Afferent != 0 {
-			t.Errorf("%s: afferent: got %d, want 0", f.Path, f.Afferent)
+		if f.Afferent != wantAfferent[f.Path] {
+			t.Errorf("%s: afferent: got %d, want %d", f.Path, f.Afferent, wantAfferent[f.Path])
 		}
 	}
 }
@@ -99,8 +108,11 @@ func TestParseDepsOutput_RecordedTypeScript(t *testing.T) {
 	if graph.Health.Files != 5 || graph.Health.DepFiles != 3 {
 		t.Errorf("health: got files=%d dep_files=%d, want 5/3", graph.Health.Files, graph.Health.DepFiles)
 	}
-	if graph.Health.Shape != "vertical" {
-		t.Errorf("health shape: got %q, want vertical", graph.Health.Shape)
+	// The pinned release classifies a graph with 1 in 20 dep_files inside
+	// an include cycle as tangled (the previous pin printed vertical for the same
+	// tree); the adapter does not consume shape.
+	if graph.Health.Shape != "tangled" {
+		t.Errorf("health shape: got %q, want tangled", graph.Health.Shape)
 	}
 
 	if len(graph.Cycles) != 1 {
@@ -214,8 +226,8 @@ func TestParseCCOutput_RecordedPython(t *testing.T) {
 		t.Fatalf("parseCCOutput: %v", err)
 	}
 
-	if len(files) != 7 {
-		t.Fatalf("files: got %d (%v), want 7 (operations/build is pruned)", len(files), ccPaths(files))
+	if len(files) != 14 {
+		t.Fatalf("files: got %d (%v), want 14 (operations/build is pruned)", len(files), ccPaths(files))
 	}
 	if n := countCCFilesWithPrefix(files, "fixturepy/operations/build"); n != 0 {
 		t.Errorf("pruned operations/build: got %d files under it, want 0", n)
@@ -236,12 +248,17 @@ func TestParseCCOutput_RecordedPython(t *testing.T) {
 		}
 		t.Errorf("cycle_a/__init__.py: got fan_in=%d fan_out=%d, want 0/1", got.FanIn, got.FanOut)
 	}
-	if api, ok := byPath["fixturepy/cycle_a/api.py"]; !ok || api.FanIn != 1 || api.FanOut != 0 {
+	if api, ok := byPath["fixturepy/cycle_a/api.py"]; !ok || api.FanIn != 2 || api.FanOut != 0 {
 		got := ccFile{}
 		if ok {
 			got = api
 		}
-		t.Errorf("cycle_a/api.py: got fan_in=%d fan_out=%d, want 1/0", got.FanIn, got.FanOut)
+		t.Errorf("cycle_a/api.py: got fan_in=%d fan_out=%d, want 2/0 (cycle_b and alias)", got.FanIn, got.FanOut)
+	}
+	// The wide-form import resolves to two files (cc.json counts both),
+	// even though --deps records a single target as written.
+	if wide, ok := byPath["fixturepy/wide/consumer.py"]; !ok || wide.FanOut != 2 {
+		t.Errorf("wide/consumer.py: got %+v (present=%v), want fan_out=2", wide, ok)
 	}
 }
 

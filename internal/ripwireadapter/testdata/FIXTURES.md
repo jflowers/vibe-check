@@ -29,6 +29,13 @@ Properties shared by every fixture file:
 | `python/src/fixturepy/cycle_a/api.py` | Defines `helper_a`, imported by cycle side B. |
 | `python/src/fixturepy/cycle_b/__init__.py` | Cycle side B: `from fixturepy.cycle_a.api import helper_a` (import edge B → A). |
 | `python/src/fixturepy/cycle_b/api.py` | Defines `helper_b`, imported by cycle side A. |
+| `python/src/fixturepy/wide/__init__.py` | Package marker for the wide-form import scenario. |
+| `python/src/fixturepy/wide/consumer.py` | `from fixturepy import cycle_b` — wide-form from-import of a **subpackage** (ripwire#478 gap 1): resolves to an edge into `fixturepy/cycle_b`, not only `fixturepy/__init__.py`. |
+| `python/src/fixturepy/alias/__init__.py` | Package marker for the aliased-import scenario. |
+| `python/src/fixturepy/alias/consumer.py` | `import fixturepy.cycle_a.api as ca` — aliased import (ripwire#478 gap 2): resolves to an edge into `fixturepy/cycle_a`. |
+| `python/src/fixturepy/collide/__init__.py` | Package marker for the stdlib-name collision scenario. |
+| `python/src/fixturepy/collide/consumer.py` | `import logging` inside a package (ripwire#478 gap 4): must bind the stdlib module, drawing no edge. |
+| `python/src/fixturepy/collide/logging.py` | Sibling whose name collides with the stdlib `logging` module; never imported. |
 
 ### Declarations in `python/src/fixturepy/models.py`
 
@@ -43,6 +50,22 @@ Properties shared by every fixture file:
 
 `cycle_a` and `cycle_b` form a two-directory import cycle. Neither
 package is meant to be imported at runtime.
+
+`wide`, `alias`, and `collide` each sit in their own directory module so each
+upstream import fix (openspec/changes/bump-ripwire-pin design D7) shows
+independently at directory grain. Gap 1 imports a subpackage on purpose: at
+directory grain `pkg/__init__.py` and `pkg/mod.py` are one module, so a
+from-import of a plain module file would not show the fix.
+
+### Mixed-language variant (recordings only)
+
+`recorded/python-mixed/` is captured from a temporary copy of `python/` with
+one Go file added at `src/fixturepy/cycle_a/helper.go`
+(`package helper` / `func Help() int { return 1 }`). The copy is never
+committed: tests replay the recordings over the standard `python/` tree, the
+same pattern `recorded/python-zero-edge/` uses. ripwire marks the module
+holding the Go file `zone="unknown" no_file_edges="go"` with no `I`/`D`
+attributes — the ARCH-HONEST surface the adapter must parse (design D2/D3).
 
 ## TypeScript fixture: `typescript/`
 

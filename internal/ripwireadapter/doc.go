@@ -7,10 +7,10 @@
 // crawl-root rules, abstractness source, and light-parse dialect.
 //
 // The backing tool is ripwire, an optional external binary discovered on PATH
-// and pinned to the validated surface: ripwire 0.6.9 at commit bedc0cd. The
+// and pinned to one validated ripwire release (version.go). The
 // binary is never vendored or bundled, and the package's full test suite
 // passes without it installed — subprocess behaviors are exercised by
-// replaying committed ripwire 0.6.9 output recordings through a fake ripwire
+// replaying committed output recordings of the pinned release through a fake ripwire
 // binary that the tests install on PATH.
 //
 // # Hybrid Metric Sourcing
@@ -53,7 +53,7 @@
 // # Version Pin
 //
 // ripwire is 0.x with no upstream semver policy, so before analyzing the
-// adapter validates the exact (version, commit) pair "0.6.9" at "bedc0cd"
+// adapter validates the exact pinned (version, commit) pair (version.go)
 // and fails closed on an absent binary, a version mismatch, or unparseable
 // version output. The ModuleGraph provenance input records the source tool
 // identity ("ripwire", version, commit) on every ripwire-backed graph.

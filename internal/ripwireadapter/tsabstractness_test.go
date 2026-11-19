@@ -15,7 +15,7 @@ import (
 func TestTSAbstractness_InterfaceShareMatchesGolden(t *testing.T) {
 	t.Parallel()
 
-	// The recorded arch table's ./src row is the golden source: 4 abstract
+	// The recorded arch table's src row is the golden source: 4 abstract
 	// (Point, Named, Repository, and namespace-nested Shapes.Point) of 5
 	// exported types (the four interfaces plus the SplitMethods class).
 	archData := readRecording(t, filepath.Join("testdata", "recorded", "typescript", "arch.txt"))
@@ -25,12 +25,12 @@ func TestTSAbstractness_InterfaceShareMatchesGolden(t *testing.T) {
 	}
 	var srcRow *archModuleRow
 	for i := range table.Rows {
-		if table.Rows[i].Path == "./src" {
+		if table.Rows[i].Path == "src" {
 			srcRow = &table.Rows[i]
 		}
 	}
 	if srcRow == nil {
-		t.Fatal("./src row not found in recorded arch table")
+		t.Fatal("src row not found in recorded arch table")
 	}
 	if srcRow.Abstract != 4 {
 		t.Errorf("abstract: got %d, want 4 (incl. nested)", srcRow.Abstract)

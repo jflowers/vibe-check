@@ -116,11 +116,11 @@ func TestAnalyze_ZeroCouplingGuardFires(t *testing.T) {
 		}
 		t.Fatalf("warnings %v: want %q present", codes, warningZeroCouplingGuard)
 	}
-	// The census walks testdata/python/src, which holds 9 source files
+	// The census walks testdata/python/src, which holds 16 source files
 	// (including 2 under the denylisted operations/build directory: the
 	// census deliberately over-counts rather than disengage the guard).
-	if !strings.Contains(guard.Message, "0 dependency edges") || !strings.Contains(guard.Message, "9 source files") {
-		t.Errorf("guard message: got %q, want it to name both counts (0 edges, 9 files)", guard.Message)
+	if !strings.Contains(guard.Message, "0 dependency edges") || !strings.Contains(guard.Message, "16 source files") {
+		t.Errorf("guard message: got %q, want it to name both counts (0 edges, 16 files)", guard.Message)
 	}
 	if len(graph.Cycles) != 0 {
 		t.Errorf("cycles: got %v, want none for an edgeless graph", graph.Cycles)
@@ -173,11 +173,11 @@ func TestAnalyze_ProvenanceSourceToolFields(t *testing.T) {
 			if input.SourceTool != "ripwire" {
 				t.Errorf("sourceTool: got %q, want ripwire", input.SourceTool)
 			}
-			if input.SourceToolVersion != "0.6.9" {
-				t.Errorf("sourceToolVersion: got %q, want 0.6.9", input.SourceToolVersion)
+			if input.SourceToolVersion != pinnedRipwireVersion {
+				t.Errorf("sourceToolVersion: got %q, want %s", input.SourceToolVersion, pinnedRipwireVersion)
 			}
-			if !strings.HasPrefix(input.SourceToolCommit, "bedc0cd") {
-				t.Errorf("sourceToolCommit: got %q, want prefix bedc0cd", input.SourceToolCommit)
+			if !strings.HasPrefix(input.SourceToolCommit, pinnedRipwireCommit) {
+				t.Errorf("sourceToolCommit: got %q, want prefix %s", input.SourceToolCommit, pinnedRipwireCommit)
 			}
 			if input.Path == "" {
 				t.Error("provenance path: got empty, want the analyzed path")
@@ -206,9 +206,12 @@ func TestAnalyze_StructuralInvariants(t *testing.T) {
 			wantLines := map[string]map[string]int{
 				languagePython: {
 					"fixturepy":            95,
+					"fixturepy.alias":      9,
+					"fixturepy.collide":    15,
 					"fixturepy.cycle_a":    16,
 					"fixturepy.cycle_b":    16,
 					"fixturepy.operations": 1,
+					"fixturepy.wide":       9,
 				},
 				languageTypeScript: {
 					".":           0,
