@@ -22,6 +22,11 @@ files with Python's own rules:
     adopted in redhat-et/ripwire#533. `*` -> X only.
   * imports anywhere in the file count (module level, functions, classes,
     TYPE_CHECKING blocks): the static import graph, as ripwire reads it.
+  * absolute names resolve first from the crawl root, then from the
+    importer's package-chain root (the nearest ancestor directory holding
+    no __init__.py) — the sys.path entry a script or test runner adds when
+    it runs a file in that tree (Django's tests/, scripts/). This matches
+    the fallback ripwire adopted with its src-layout fix (Train 44).
   * targets outside the tree (stdlib, third-party) are not edges.
   * directories ripwire's crawl denylist prunes are excluded from both
     sides: their absence is disclosed separately (denylist-pruned warning),
@@ -53,12 +58,20 @@ import xml.etree.ElementTree as ET
 DENYLIST = {"build", "dist", "out", "target", "vendor", "third_party", "captures"}
 
 
-def python_files(root):
-    """Yield crawl-root-relative paths of .py files, pruning like ripwire."""
+def python_files(root, pruned=None):
+    """Yield crawl-root-relative paths of .py files, pruning like ripwire.
+
+    When pruned is a set, the crawl-root-relative paths of the denylisted
+    directories that were skipped are added to it.
+    """
     for dirpath, dirnames, filenames in os.walk(root):
-        dirnames[:] = sorted(
-            d for d in dirnames if d not in DENYLIST and not d.startswith(".")
-        )
+        kept = []
+        for d in sorted(dirnames):
+            if d in DENYLIST and pruned is not None:
+                pruned.add(os.path.relpath(os.path.join(dirpath, d), root).replace(os.sep, "/"))
+            if d not in DENYLIST and not d.startswith("."):
+                kept.append(d)
+        dirnames[:] = kept
         for name in sorted(filenames):
             if name.endswith(".py"):
                 yield os.path.relpath(os.path.join(dirpath, name), root).replace(os.sep, "/")
@@ -74,8 +87,27 @@ def module_name(rel):
 
 def ground_truth(root):
     """Return (files, edges): in-tree files and resolved (src, dst) file edges."""
-    files = list(python_files(root))
+    pruned = set()
+    files = list(python_files(root, pruned))
     by_module = {module_name(f): f for f in files}
+    file_set = set(files)
+
+    def chain_root(rel):
+        """Nearest ancestor directory (crawl-root-relative) without __init__.py."""
+        parts = rel.split("/")[:-1]
+        while parts and "/".join(parts + ["__init__.py"]) in file_set:
+            parts.pop()
+        return "/".join(parts)
+
+    def lookup(dotted, prefix):
+        """File for a dotted module name resolved under a root prefix."""
+        if not prefix:
+            return by_module.get(dotted)
+        base = prefix + "/" + dotted.replace(".", "/")
+        for candidate in (base + ".py", base + "/__init__.py"):
+            if candidate in file_set:
+                return candidate
+        return None
     edges = set()
     parse_errors = []
 
@@ -90,10 +122,35 @@ def ground_truth(root):
         own = module_name(rel)
         package = own if is_package else own.rpartition(".")[0]
 
+        roots = [""]
+        extra = chain_root(rel)
+        if extra:
+            roots.append(extra)
+
+        def find(dotted):
+            for prefix in roots:
+                hit = lookup(dotted, prefix)
+                if hit:
+                    return hit
+            return None
+
+        def into_pruned(dotted):
+            """True when dotted names a path inside a denylist-pruned directory."""
+            for prefix in roots:
+                path = (prefix + "/" if prefix else "") + dotted.replace(".", "/")
+                if any(path == d or path.startswith(d + "/") for d in pruned):
+                    return True
+            return False
+
         def deepest(dotted):
+            if into_pruned(dotted):
+                # The target was pruned from the crawl: excluded from both
+                # sides (disclosed by denylist-pruned), never attributed to
+                # its parent package.
+                return None
             parts = dotted.split(".")
             for i in range(len(parts), 0, -1):
-                hit = by_module.get(".".join(parts[:i]))
+                hit = find(".".join(parts[:i]))
                 if hit:
                     return hit
             return None
@@ -115,13 +172,15 @@ def ground_truth(root):
                     base = ".".join(base_parts)
                 else:
                     base = node.module or ""
+                relative = node.level > 0
+                resolve = by_module.get if relative else find
                 if base:
                     # The package (or module) imported from always loads.
-                    targets.append(by_module.get(base) or deepest(base))
+                    targets.append(resolve(base) or (None if relative else deepest(base)))
                 for alias in node.names:
                     member = f"{base}.{alias.name}" if base else alias.name
-                    if alias.name != "*" and member in by_module:
-                        targets.append(by_module[member])
+                    if alias.name != "*":
+                        targets.append(resolve(member))
             for dst in targets:
                 if dst and dst != rel:
                     edges.add((rel, dst))

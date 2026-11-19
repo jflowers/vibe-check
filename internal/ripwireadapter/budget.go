@@ -6,29 +6,33 @@ import (
 	"github.com/zero-dot-force/vibe-check/metrics"
 )
 
-// warningErrorBudget is the warning code for the spike-measured error
-// budgets of the ripwire-backed coupling data, per language.
+// warningErrorBudget is the warning code for the measured error budgets of
+// the ripwire-backed coupling data, per language.
 const warningErrorBudget = "error-budget"
 
-// errorBudgetWarning returns the language's spike-measured error budget
-// warning (openspec/changes/ripwire-adapter spike #67): the measured
-// inaccuracy of sourcing coupling data from ripwire's name-based,
-// file-level include scan. Python's budget combines lost edges (imports
-// the scan misses) with spurious edges (includes it over-credits);
-// TypeScript's budget is the unresolved-target rate.
+// errorBudgetWarning returns the language's measured error-budget warning:
+// the inaccuracy of sourcing coupling data from ripwire's name-based,
+// file-level import scan, measured against the pinned ripwire release by
+// the harness in openspec/changes/bump-ripwire-pin/measurement (results.md
+// there). Python's budget states directory-grain Ca/Ce exactness on pip and
+// django plus count-based file-edge loss and gain (lower bounds);
+// TypeScript's budget is ripwire's disclosed unresolved-import rate on
+// rollup. The message names the pinned version so a reader can tell which
+// instrument the figures describe.
 func errorBudgetWarning(language string) metrics.Warning {
 	switch language {
 	case languagePython:
 		return metrics.Warning{
 			Code: warningErrorBudget,
-			Message: "coupling data sourced from ripwire's name-based scan carries a " +
-				"spike-measured error budget: 1.9% of edges lost, 2.2% spurious",
+			Message: fmt.Sprintf("coupling data sourced from ripwire %s's name-based scan carries a "+
+				"measured error budget (pip, django): directory Ca/Ce 100%% exact; file edges "+
+				"at least 0.11%% lost and 0.01%% spurious (count-based lower bounds)", pinnedRipwireVersion),
 		}
 	case languageTypeScript:
 		return metrics.Warning{
 			Code: warningErrorBudget,
-			Message: "coupling data sourced from ripwire's path-based scan carries a " +
-				"spike-measured error budget: 0.16% of targets unresolved",
+			Message: fmt.Sprintf("coupling data sourced from ripwire %s's path-based scan carries a "+
+				"measured error budget (rollup): 0.16%% of import targets unresolved", pinnedRipwireVersion),
 		}
 	default:
 		return metrics.Warning{

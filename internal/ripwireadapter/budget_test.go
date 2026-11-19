@@ -7,9 +7,12 @@ import (
 	"github.com/zero-dot-force/vibe-check/metrics"
 )
 
-// Error-budget warning tests — openspec/changes/ripwire-adapter task 4.5.
-// They pin the spike-measured budget text per language and the
-// any-warning ⇒ partial status rule the graph assembly applies.
+// Error-budget warning tests — openspec/changes/ripwire-adapter task 4.5,
+// revised by openspec/changes/bump-ripwire-pin task 5.3. They pin the
+// measured budget text per language (figures from
+// openspec/changes/bump-ripwire-pin/measurement/results.md), that the text
+// names the pinned version, and the any-warning ⇒ partial status rule the
+// graph assembly applies.
 
 func TestErrorBudgetWarning_PerLanguage(t *testing.T) {
 	t.Parallel()
@@ -18,8 +21,8 @@ func TestErrorBudgetWarning_PerLanguage(t *testing.T) {
 		language string
 		wantText []string
 	}{
-		{languagePython, []string{"1.9%", "2.2%"}},
-		{languageTypeScript, []string{"0.16%"}},
+		{languagePython, []string{"ripwire " + pinnedRipwireVersion, "100% exact", "0.11% lost", "0.01% spurious"}},
+		{languageTypeScript, []string{"ripwire " + pinnedRipwireVersion, "0.16% of import targets unresolved"}},
 	}
 
 	for _, tc := range cases {
