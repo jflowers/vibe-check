@@ -70,12 +70,13 @@ Python and TypeScript analysis is powered by an optional external tool:
 [ripwire](https://github.com/redhat-et/ripwire).
 
 ```bash
-# Prerequisite for Python/TypeScript only: install ripwire 0.6.9 and put it on PATH
+# Prerequisite for Python/TypeScript only: install ripwire <RELEASE> and put it on PATH
 vibe-check analyze ./my-python-project
 ```
 
-- **Install**: build or download ripwire `0.6.9` (built from commit `bedc0cd`) from
-  <https://github.com/redhat-et/ripwire> and ensure the binary is on `PATH`.
+- **Install**: download ripwire `<RELEASE>` (built from commit `<RELEASE-COMMIT>`) from
+  <https://github.com/redhat-et/ripwire> and ensure the binary is on `PATH`. A source
+  build of ripwire `main` reports a development version and is refused.
 - **Version pin, fail-closed**: `analyze` validates the resolved binary's reported
   version and commit before doing any work. Any other version exits `2` — every
   parsing and mapping decision was validated against that exact output shape.
@@ -88,11 +89,12 @@ vibe-check analyze ./my-python-project
 
 | Metric | Source |
 |--------|--------|
-| Ca, Ce, Instability | ripwire `--arch` metrics table |
+| Ca, Ce | ripwire `--arch` metrics table (floors for modules ripwire marks `zone="unknown"`) |
+| Instability | derived (`metrics.Compute*`) from Ca, Ce |
 | Abstractness | Python: vibe-check light parse (ABC / ABCMeta / Protocol classes); TypeScript: ripwire interface share |
 | Distance, Zone | derived (`metrics.Compute*`) |
 | LCOM4 | vibe-check light parse (methods sharing `self.X` / `this.X` fields) |
-| Cycles | ripwire `--deps` edges + vibe-check's own SCC derivation |
+| Cycles | vibe-check's own SCC derivation over name-resolved ripwire `--deps` import targets |
 | Duplication | unsupported — zero-valued, with an `unsupported-metric` warning |
 | TotalLines | ripwire `--export=cc.json` census — physical lines of indexed source files; config-only modules report an honest 0 (Go counts significant lines) |
 
@@ -102,8 +104,10 @@ vibe-check analyze ./my-python-project
 |----------------|---------|
 | `name-resolved-edges` | Python imports are resolved by dotted name to directories; name-based resolution can misattribute when package names collide. |
 | `directory-as-module` | Modules are directories; coupling between files in the same directory is intra-module and invisible. |
-| `error-budget` | Spike-measured inaccuracy of the coupling data: Python 1.9% of edges lost / 2.2% spurious; TypeScript 0.16% of targets unresolved. |
-| `cycle-approximation` | Cycles are a directory-grain SCC derivation, corroborated against ripwire's own capped (20 SCCs × 12 members) file-level listing. |
+| `error-budget` | Measured inaccuracy of the coupling data against the pinned ripwire release: <BUDGET-FIGURES>. |
+| `cycle-approximation` | Cycles are a directory-grain SCC derivation, corroborated against ripwire's own file-level listing (up to 1000 SCCs × 12 members). The derivation name-resolves import text, so a cycle closed only through a `from pkg import subpkg` import is not detected even though Ca/Ce count that edge. |
+| `coupling-floor` | ripwire resolves almost no imports for some languages (Go, Java, Kotlin, C#, PHP, Swift, Dart, GDScript, Clojure). A module holding such a file reports Ca/Ce as lower bounds; the warning names the modules and languages. |
+| `denylist-pruned` | ripwire skips directories named `build`, `dist`, `out`, `target`, `vendor`, `third_party`, `captures`; the warning lists the source-bearing ones it pruned. |
 | `ts-abstractness-bias` | TypeScript abstractness undercounts `abstract class` declarations and type aliases inflate the type denominator. |
 | `unsupported-metric` | Duplication is not computed for these languages. |
 
