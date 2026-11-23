@@ -17,18 +17,22 @@ import (
 // target Base alone, dropping Name; the member-import light parse
 // recovers Name so a wide-form subpackage import (`from pkg import
 // subpkg`) can contribute its directory edge to cycle derivation
-// (openspec/changes/wide-form-cycle-edges design D2).
+// (openspec/changes/wide-form-cycle-edges design D2). Relative bases
+// (`from .. import sub`) are kept too (openspec/changes/
+// relative-import-edges design D3).
 type memberImport struct {
-	// Base is the absolute dotted module name after `from`, verbatim.
+	// Base is the module name after `from`, verbatim: an absolute dotted
+	// name (pkg.sub) or a relative one (".", "..", ".sub", "..pkg.sub"),
+	// spelled exactly as ripwire's --deps records it in <inc t=>.
 	Base string
 	// Name is one imported name, with any `as` alias removed.
 	Name string
 }
 
 // pyFromImportRegex matches one logical `from BASE import NAMES`
-// statement with an absolute base. The leading identifier character
-// excludes relative bases (`.`, `..pkg`), which are out of scope.
-var pyFromImportRegex = regexp.MustCompile(`^\s*from\s+([A-Za-z_][A-Za-z0-9_.]*)\s+import\s+(.+?)\s*$`)
+// statement. BASE is absolute (`pkg.sub`) or relative: one or more dots,
+// optionally followed by a dotted name (`.`, `..`, `.sub`, `..pkg.sub`).
+var pyFromImportRegex = regexp.MustCompile(`^\s*from\s+(\.+(?:[A-Za-z_][A-Za-z0-9_.]*)?|[A-Za-z_][A-Za-z0-9_.]*)\s+import\s+(.+?)\s*$`)
 
 // pyIdentifierRegex matches a plain ASCII Python identifier.
 var pyIdentifierRegex = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
@@ -36,7 +40,8 @@ var pyIdentifierRegex = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
 // pythonMemberImportScan walks the crawl root's Python sources and returns,
 // per root-relative slash-form file path (the same form as ripwire's
 // --deps p= attribute), the sorted, de-duplicated member imports of every
-// absolute `from Base import names` statement in the file. Files without
+// `from Base import names` statement (absolute or relative base) in the
+// file. Files without
 // such statements are absent from the map.
 //
 // Directories ripwire prunes (the shared denylist) are skipped, matching
@@ -96,9 +101,10 @@ func pythonMemberImportScan(crawlRoot string) (map[string][]memberImport, []metr
 	return results, warnings, nil
 }
 
-// scanPythonMemberImports extracts the member imports of every absolute
+// scanPythonMemberImports extracts the member imports of every
 // `from Base import names` statement in Python source text, sorted by
-// (Base, Name) and de-duplicated.
+// (Base, Name) and de-duplicated. Base is kept verbatim, relative bases
+// included.
 //
 // The scan is light — a lexical pass, not a parser:
 //   - comments are dropped and string literals (single- or triple-quoted,
@@ -112,12 +118,15 @@ func pythonMemberImportScan(crawlRoot string) (map[string][]memberImport, []metr
 //     conditional import is still an import dependency.
 //
 // Names drop an `as` alias; `*` and anything that is not a plain ASCII
-// identifier are ignored. Relative bases are not matched. LF, CRLF, and
-// lone-CR line endings are recognized. Limitations, documented rather
-// than silently wrong: non-ASCII identifiers are skipped; a `;` inside
-// brackets splits a statement (no supported import idiom does that); and
-// syntax the lexer does not model (nested quotes in Python 3.12 f-strings,
-// an unbalanced bracket in a file with a syntax error) can mis-join lines.
+// identifier are ignored. A malformed base (an empty dotted component, as
+// in `pkg..x` or `.a.`) is skipped. LF, CRLF, and lone-CR line endings
+// are recognized. Limitations, documented rather than silently wrong:
+// non-ASCII identifiers are skipped; a `;` inside brackets splits a
+// statement (no supported import idiom does that); a relative base
+// written without a space before `import` (`from .import x`) is not
+// matched; and syntax the lexer does not model (nested quotes in Python
+// 3.12 f-strings, an unbalanced bracket in a file with a syntax error) can
+// mis-join lines.
 // The mapping's anchoring rule keeps such misreads from producing edges
 // unless they also match a recorded include and a module directory.
 func scanPythonMemberImports(source string) []memberImport {
@@ -130,8 +139,9 @@ func scanPythonMemberImports(source string) []memberImport {
 				continue
 			}
 			base := match[1]
-			if strings.HasSuffix(base, ".") || strings.Contains(base, "..") {
-				continue
+			if dotted := strings.TrimLeft(base, "."); dotted != "" &&
+				(strings.HasSuffix(dotted, ".") || strings.Contains(dotted, "..")) {
+				continue // malformed: empty dotted component
 			}
 			names := strings.TrimSpace(match[2])
 			names = strings.TrimSuffix(strings.TrimPrefix(names, "("), ")")
