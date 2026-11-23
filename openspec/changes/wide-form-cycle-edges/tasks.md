@@ -33,7 +33,7 @@
 ## 5. Gates
 
 - [x] 5.1 CI parity: run every command in `.github/workflows/ci.yml` locally (build, `go test -race -count=1 -coverprofile=coverage.out ./...`, coverage ratchet, vet, golangci-lint, plus any others listed there) with ripwire removed from PATH. Verify: all pass. Coverage floors are not lowered, and the `ripwireadapter` floor is raised with `--update` only if it rises.
-- [ ] 5.2 Run `/uf.review-council`. Resolve every REQUEST CHANGES. Verify: all reviewers APPROVE.
+- [x] 5.2 Run `/uf.review-council`. Resolve every REQUEST CHANGES. Verify: all reviewers APPROVE.
 - [ ] 5.3 Push `opsx/wide-form-cycle-edges` and open a draft PR stacked on #96, stating that it cannot merge before #96. Verify: PR open.
 - [ ] 5.4 After #96 merges, rebase onto `main`. If #96's Phase B re-captured with a different binary, repeat 2.2–2.3 and 5.1. Mark the PR ready.
 

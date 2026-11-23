@@ -80,13 +80,16 @@ returns `map[string][]memberImport`, keyed by root-relative file path
 (slash form, matching `--deps` `p=`), where `memberImport{Base, Name string}`.
 Per file the list is sorted by (Base, Name) and deduplicated.
 
-The scanner is a line-based state machine over a pure function
+The scanner is a lexical pass over a pure function
 `scanPythonMemberImports(source string) []memberImport`:
 
-- Triple-quoted string blocks (`"""`/`'''`) are tracked and skipped, and `#`
-  comments are stripped outside string literals.
-- A logical line is formed by joining backslash continuations and, after
-  `import (`, all lines through the matching `)`.
+- Comments are dropped. Every string literal (single- or triple-quoted,
+  with backslash escapes) is blanked to `""`, so import-like text inside a
+  docstring or string never matches.
+- Physical lines are joined into logical lines across backslash
+  continuations and across any open bracket, so parenthesized multi-line
+  name lists are read whole. LF, CRLF, and lone-CR line endings are all
+  recognized.
 - Lines are split on `;` into statements, and each statement is matched
   against `^\s*from\s+([A-Za-z_][\w.]*)\s+import\s+(.+)$`. The leading
   identifier character excludes relative bases.
@@ -95,10 +98,18 @@ The scanner is a line-based state machine over a pure function
 - Indented statements (inside `if TYPE_CHECKING:`, `try:`, or functions) are
   included. Conditional imports are real edges, and ripwire records them too.
 
-Documented limitations, consistent with the other light parses: strings that
-are not triple-quoted but contain `from x import y` at statement start are not
-excluded, and neither are exotic encodings or `exec`-built imports. The
-anchoring rule (D3) neutralizes most false positives.
+Documented limitations, consistent with the other light parses: non-ASCII
+identifiers are skipped, a `;` inside brackets splits a statement, and
+syntax the lexer does not model (for example nested quotes in 3.12
+f-strings, or an unbalanced bracket in a file with a syntax error) can
+mis-join lines. The anchoring rule (D3) neutralizes most resulting false
+positives.
+
+*Correction during implementation:* an earlier draft of this decision
+tracked only triple-quoted strings and joined lines only after `import (`.
+The implementation blanks every string literal and joins across any open
+bracket, which removes the single-quoted-string false positive the draft
+listed. That stricter behavior is now the design.
 
 ### D3: Mapping — anchored member edges
 
@@ -177,10 +188,11 @@ the figures stand and are not re-measured.
   coupling and the edge set is the cycle input. Because of anchoring, every
   extra edge corresponds to a real `from B import n` statement whose `B/n` is a
   package in the universe, which is a true import dependency in Python.
-- **Light-parse false positives.** A single-quoted string starting with
-  `from x import y` inside a file that also imports `x` could add a spurious
-  member edge if `x/y` is a package. This needs three coincidences, and it is
-  disclosed in GoDoc with the other light-parse limits.
+- **Light-parse false positives.** Because every string literal is blanked,
+  a spurious member edge needs lexer confusion (for example an f-string with
+  nested quotes, or an unbalanced bracket in a file with a syntax error) and
+  an anchor match and a `B/n` package directory. This is disclosed in GoDoc
+  with the other light-parse limits.
 - **Performance.** One more read of every `.py` file under the crawl root.
   That is linear and small next to the three ripwire subprocesses.
 - **Depends on #96.** The branch is stacked on `opsx/bump-ripwire-pin`. If

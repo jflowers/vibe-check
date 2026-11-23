@@ -5,7 +5,10 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
+
+	"github.com/zero-dot-force/vibe-check/metrics"
 )
 
 func TestScanPythonMemberImports_Forms(t *testing.T) {
@@ -112,6 +115,16 @@ func TestScanPythonMemberImports_Forms(t *testing.T) {
 			want:   []memberImport{{Base: "pkg", Name: "sub"}},
 		},
 		{
+			name:   "lone CR line endings",
+			source: "x = 1\rfrom pkg import a\r# note\rfrom pkg import b\r",
+			want:   []memberImport{{Base: "pkg", Name: "a"}, {Base: "pkg", Name: "b"}},
+		},
+		{
+			name:   "escaped quote keeps the string closed",
+			source: "s = 'it\\'s'; from pkg import x\n",
+			want:   []memberImport{{Base: "pkg", Name: "x"}},
+		},
+		{
 			name:   "empty source",
 			source: "",
 			want:   nil,
@@ -156,10 +169,14 @@ func TestPythonMemberImportScan_DenylistSkipped(t *testing.T) {
 	root := t.TempDir()
 	writeFile(t, root, "pkg/a.py", "from pkg import sub\n")
 	writeFile(t, root, "pkg/build/b.py", "from pkg import pruned\n")
+	writeFile(t, root, "pkg/notes.txt", "from pkg import fake\n")
 
-	got, _, err := pythonMemberImportScan(root)
+	got, warnings, err := pythonMemberImportScan(root)
 	if err != nil {
 		t.Fatalf("scan: %v", err)
+	}
+	if len(warnings) != 0 {
+		t.Errorf("warnings: got %v, want none", warnings)
 	}
 	want := map[string][]memberImport{"pkg/a.py": {{Base: "pkg", Name: "sub"}}}
 	if !reflect.DeepEqual(got, want) {
@@ -169,9 +186,7 @@ func TestPythonMemberImportScan_DenylistSkipped(t *testing.T) {
 
 func TestPythonMemberImportScan_UnreadableFile(t *testing.T) {
 	t.Parallel()
-	if os.Geteuid() == 0 {
-		t.Skip("root ignores file permissions")
-	}
+	skipIfRoot(t)
 
 	root := t.TempDir()
 	writeFile(t, root, "pkg/ok.py", "from pkg import sub\n")
@@ -180,16 +195,24 @@ func TestPythonMemberImportScan_UnreadableFile(t *testing.T) {
 	if err := os.Chmod(locked, 0o000); err != nil {
 		t.Fatalf("chmod: %v", err)
 	}
+	t.Cleanup(func() { _ = os.Chmod(locked, 0o644) })
 
 	got, warnings, err := pythonMemberImportScan(root)
 	if err != nil {
 		t.Fatalf("scan: %v", err)
 	}
-	if _, ok := got["pkg/locked.py"]; ok {
-		t.Errorf("unreadable file contributed member imports: %v", got)
+	want := map[string][]memberImport{"pkg/ok.py": {{Base: "pkg", Name: "sub"}}}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("got %v, want %v (the unreadable file contributes nothing)", got, want)
 	}
 	if len(warnings) != 1 || warnings[0].Code != warningParseError {
-		t.Errorf("warnings: got %v, want one %s", warnings, warningParseError)
+		t.Fatalf("warnings: got %v, want one %s", warnings, warningParseError)
+	}
+	if !strings.Contains(warnings[0].Message, "pkg/locked.py") {
+		t.Errorf("warning message: got %q, want it to name pkg/locked.py", warnings[0].Message)
+	}
+	if status := graphStatusForWarnings(warnings); status != metrics.StatusPartial {
+		t.Errorf("status: got %q, want %q", status, metrics.StatusPartial)
 	}
 }
 

@@ -195,7 +195,7 @@ func mapToModules(language string, table archTable, deps depsGraph, members map[
 			if !anchors[member.Base] {
 				continue
 			}
-			dir := strings.ReplaceAll(member.Base, ".", "/") + "/" + member.Name
+			dir := identityToDir(member.Base + "." + member.Name)
 			if target, ok := moduleByDir[dir]; ok {
 				addEdge(sourceModule, target.Identity)
 			}

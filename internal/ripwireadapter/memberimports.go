@@ -112,10 +112,14 @@ func pythonMemberImportScan(crawlRoot string) (map[string][]memberImport, []metr
 //     conditional import is still an import dependency.
 //
 // Names drop an `as` alias; `*` and anything that is not a plain ASCII
-// identifier are ignored. Relative bases are not matched. Limitations,
-// documented rather than silently wrong: non-ASCII identifiers are
-// skipped, and a `;` inside brackets splits a statement (no supported
-// import idiom does that).
+// identifier are ignored. Relative bases are not matched. LF, CRLF, and
+// lone-CR line endings are recognized. Limitations, documented rather
+// than silently wrong: non-ASCII identifiers are skipped; a `;` inside
+// brackets splits a statement (no supported import idiom does that); and
+// syntax the lexer does not model (nested quotes in Python 3.12 f-strings,
+// an unbalanced bracket in a file with a syntax error) can mis-join lines.
+// The mapping's anchoring rule keeps such misreads from producing edges
+// unless they also match a recorded include and a module directory.
 func scanPythonMemberImports(source string) []memberImport {
 	seen := make(map[memberImport]bool)
 	var members []memberImport
@@ -181,7 +185,7 @@ func pythonLogicalLines(source string) []string {
 		c := source[i]
 		switch {
 		case c == '#':
-			for i+1 < len(source) && source[i+1] != '\n' {
+			for i+1 < len(source) && source[i+1] != '\n' && source[i+1] != '\r' {
 				i++
 			}
 		case c == '\\' && i+1 < len(source) && source[i+1] == '\n':
@@ -201,7 +205,10 @@ func pythonLogicalLines(source string) []string {
 				depth--
 			}
 			current.WriteByte(c)
-		case c == '\n':
+		case c == '\n' || (c == '\r' && (i+1 >= len(source) || source[i+1] != '\n')):
+			// LF, or a lone CR (classic Mac line ending, which Python
+			// accepts). The CR of a CRLF pair is dropped below and its LF
+			// ends the line.
 			if depth > 0 {
 				current.WriteByte(' ')
 				continue
@@ -239,7 +246,7 @@ func skipPythonString(source string, start int) int {
 			return i + 2
 		case !triple && c == quote:
 			return i
-		case !triple && c == '\n':
+		case !triple && (c == '\n' || c == '\r'):
 			return i - 1
 		}
 		i++
