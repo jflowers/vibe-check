@@ -16,6 +16,12 @@
 > `ring_a`/`ring_b` fixture packages (two new modules, `fixturepy` Ca 1 → 2,
 > a second cycle closed only by a wide-form member edge). TypeScript is
 > unchanged.
+>
+> Revised again by `openspec/changes/relative-import-edges` task 3.3: the
+> Python recordings re-captured with the same 0.7.0 release for the
+> `rel_a`/`rel_b` fixture packages (two new modules, `fixturepy` Ca 2 → 3, a
+> third cycle closed only through relative imports). TypeScript is
+> unchanged.
 
 `python/golden.json` and `typescript/golden.json` in this directory are the
 hand-computed, pinned acceptance targets for analyzing the two fixture
@@ -151,7 +157,7 @@ Config files the crawl indexes at a TypeScript root (`package.json`,
 sentinel. Python: fixturepy = 1 + 94 = **95**, alias = 1 + 8 = **9**,
 collide = 1 + 8 + 6 = **15**, cycle_a = 10 + 6 = **16**, cycle_b = **16**,
 operations = **1**, wide = 1 + 8 = **9**, ring_a = 12 + 6 = **18**,
-ring_b = **10**; TS: `.` = **0** (config only),
+ring_b = **10**, rel_a = **12**, rel_b = 10 + 6 = **16**; TS: `.` = **0** (config only),
 src = **60** (`models.ts`; an earlier draft of this ledger said 92, an
 arithmetic slip that folded in the cycle directories' 32), cycle-a/b =
 **16**. ripwire's `loc` is a *physical* line count, a different
@@ -189,32 +195,34 @@ lexicographically; the single cycle per graph needs no inter-cycle ordering.
 
 ## Python golden — value-by-value ledger
 
-Module set = the ten `<m>` rows of `arch.txt`. ripwire 0.7.0 indexes a
+Module set = the twelve `<m>` rows of `arch.txt`. ripwire 0.7.0 indexes a
 `build/` directory whose files git tracks, and the recording is captured
 inside this repository's checkout, so `operations/build` is present
-(`deps.xml` `health files="19"`, all 19 fixture `.py` files) and there is
+(`deps.xml` `health files="22"`, all 22 fixture `.py` files) and there is
 no `<pruned_packages>`. (Captured outside git, as `python-mixed/` is, it is
 pruned and disclosed.)
 
 | path | ca | ce | expTypes | absTypes | I | A | D | lcom | zone |
 |------|----|----|----------|----------|---|---|---|------|------|
-| `fixturepy` | 2 | 0 | 4 | 1 | 0 | 0.25 | 0.75 | 6 | normal |
+| `fixturepy` | 3 | 0 | 4 | 1 | 0 | 0.25 | 0.75 | 6 | normal |
 | `fixturepy.alias` | 0 | 1 | 0 | 0 | 1 | 0 | 0 | 0 | main-sequence |
 | `fixturepy.collide` | 0 | 0 | 0 | 0 | 0 | 0 | 1 | 0 | zone-of-pain |
 | `fixturepy.cycle_a` | 2 | 1 | 0 | 0 | 0.3333333333333333 | 0 | 0.6666666666666667 | 0 | normal |
 | `fixturepy.cycle_b` | 2 | 1 | 0 | 0 | 0.3333333333333333 | 0 | 0.6666666666666667 | 0 | normal |
 | `fixturepy.operations` | 0 | 0 | 0 | 0 | 0 | 0 | 1 | 0 | zone-of-pain |
 | `fixturepy.operations.build` | 0 | 0 | 0 | 0 | 0 | 0 | 1 | 0 | zone-of-pain |
+| `fixturepy.rel_a` | 1 | 1 | 0 | 0 | 0.5 | 0 | 0.5 | 0 | normal |
+| `fixturepy.rel_b` | 1 | 2 | 0 | 0 | 0.6666666666666666 | 0 | 0.33333333333333337 | 0 | normal |
 | `fixturepy.ring_a` | 1 | 2 | 0 | 0 | 0.6666666666666666 | 0 | 0.33333333333333337 | 0 | normal |
 | `fixturepy.ring_b` | 1 | 1 | 0 | 0 | 0.5 | 0 | 0.5 | 0 | normal |
 | `fixturepy.wide` | 0 | 2 | 0 | 0 | 1 | 0 | 0 | 0 | main-sequence |
 
 ### `fixturepy`
 
-- **ca=2, ce=0** — `arch.txt` `<m path="fixturepy" ca="2" ce="0">` (table
+- **ca=3, ce=0** — `arch.txt` `<m path="fixturepy" ca="3" ce="0">` (table
   authoritative). The afferent edges are `wide`'s `from fixturepy import
-  cycle_b` and `ring_a`'s `from fixturepy import ring_b`, which also reach
-  `fixturepy/__init__.py`. Note `models.py` imports `abc` (stdlib): that edge is
+  cycle_b`, `ring_a`'s `from fixturepy import ring_b`, and `rel_b`'s
+  `from .. import rel_a`, which all also reach `fixturepy/__init__.py`. Note `models.py` imports `abc` (stdlib): that edge is
   out-of-corpus, so the table reports `ce=0` and `cc.json` reports
   `fan_out=0` for `models.py` ("In-corpus files this file depends on").
   D6's "count external targets in Ce only" is a no-op on this fixture — no
@@ -325,6 +333,21 @@ lcom=0**.
   0.33333333333333337 → **normal** (A < 0.2, I ≥ 0.2).
 - **ring_b: ca=1, ce=1** — **I** = 0.5, **D** = 0.5 → **normal**.
 
+### `fixturepy.rel_a` / `fixturepy.rel_b`
+
+`rel_a` holds `__init__.py` (12 lines: docstring, `from ..rel_b.api import
+token`, `__all__`); `rel_b` holds `__init__.py` (10 lines: docstring,
+`from .. import rel_a`, `__all__`) and `api.py` (6 lines, one module-level
+function). No classes → **types 0/0, A=0, lcom=0**.
+
+- **rel_a: ca=1, ce=1** — the relative import resolves to `rel_b/api.py`;
+  the afferent edge is `rel_b`'s `from .. import rel_a`. **I** = 0.5,
+  **D** = 0.5 → **normal**.
+- **rel_b: ca=1, ce=2** — `from .. import rel_a` resolves to
+  `fixturepy/__init__.py` and `rel_a/__init__.py` (ripwire resolves relative
+  bases and their members). **I** = 2/3 = 0.6666666666666666, **D** =
+  0.33333333333333337 → **normal**.
+
 ### Cycle
 
 `deps.xml` file-level edges: `cycle_a/__init__.py` →
@@ -346,11 +369,19 @@ through a member edge. `deps.xml` records `ring_a/__init__.py` →
 member-import light parse adds `ring_a → ring_b` from `from fixturepy import
 ring_b`, anchored to that `fixturepy` include, which closes the pair. At
 file grain the ring is acyclic (`ring_a/__init__.py → ring_b/__init__.py →
-ring_a/api.py`), so ripwire lists no cycle. Golden `cycles` (sorted by first
-member):
+ring_a/api.py`), so ripwire lists no cycle.
+
+The third cycle, `["fixturepy.rel_a", "fixturepy.rel_b"]`, closes only
+through relative imports (`relative-import-edges`). `deps.xml` records them as
+written: `rel_a/__init__.py` → `<inc t="..rel_b.api">`, which resolves
+against the package `fixturepy/rel_a` to `rel_b`, and `rel_b/__init__.py` →
+`<inc t="..">`, which resolves to `fixturepy`. The member-import light parse
+adds `rel_b → rel_a` from `from .. import rel_a`, anchored to that `..`
+include. At file grain the pair is acyclic (`rel_b/__init__.py →
+rel_a/__init__.py → rel_b/api.py`). Golden `cycles` (sorted by first member):
 
 ```json
-[["fixturepy.cycle_a", "fixturepy.cycle_b"], ["fixturepy.ring_a", "fixturepy.ring_b"]]
+[["fixturepy.cycle_a", "fixturepy.cycle_b"], ["fixturepy.rel_a", "fixturepy.rel_b"], ["fixturepy.ring_a", "fixturepy.ring_b"]]
 ```
 
 Python `deps.xml` carries **no `<cycles>` element** (README, "Reading the

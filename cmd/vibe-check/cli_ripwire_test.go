@@ -147,13 +147,14 @@ func TestRunAnalyze_AdapterSelection(t *testing.T) {
 		if result.Graph == nil || result.Graph.Language != "python" {
 			t.Fatalf("graph language: got %+v, want python", result.Graph)
 		}
-		if len(result.Graph.Modules) != 10 {
-			t.Errorf("modules: got %d, want 10 (fixture graph)", len(result.Graph.Modules))
+		if len(result.Graph.Modules) != 12 {
+			t.Errorf("modules: got %d, want 12 (fixture graph)", len(result.Graph.Modules))
 		}
-		// cycle_a/cycle_b plus ring_a/ring_b, which closes only through a
-		// wide-form member edge (openspec/changes/wide-form-cycle-edges).
-		if len(result.Graph.Cycles) != 2 {
-			t.Errorf("cycles: got %v, want 2 (fixture graph)", result.Graph.Cycles)
+		// cycle_a/cycle_b, ring_a/ring_b (closed only through a wide-form
+		// member edge), and rel_a/rel_b (closed only through relative
+		// imports; openspec/changes/relative-import-edges).
+		if len(result.Graph.Cycles) != 3 {
+			t.Errorf("cycles: got %v, want 3 (fixture graph)", result.Graph.Cycles)
 		}
 	})
 

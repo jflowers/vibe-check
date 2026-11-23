@@ -170,6 +170,8 @@ func TestPythonMemberImportScan_Fixture(t *testing.T) {
 	want := map[string][]memberImport{
 		"fixturepy/cycle_a/__init__.py": {{Base: "fixturepy.cycle_b.api", Name: "helper_b"}},
 		"fixturepy/cycle_b/__init__.py": {{Base: "fixturepy.cycle_a.api", Name: "helper_a"}},
+		"fixturepy/rel_a/__init__.py":   {{Base: "..rel_b.api", Name: "token"}},
+		"fixturepy/rel_b/__init__.py":   {{Base: "..", Name: "rel_a"}},
 		"fixturepy/ring_a/__init__.py":  {{Base: "fixturepy", Name: "ring_b"}},
 		"fixturepy/ring_b/__init__.py":  {{Base: "fixturepy.ring_a.api", Name: "marker"}},
 		"fixturepy/wide/consumer.py":    {{Base: "fixturepy", Name: "cycle_b"}},

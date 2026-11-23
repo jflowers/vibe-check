@@ -30,6 +30,8 @@ func TestLCOM4Scan_FixturePython(t *testing.T) {
 		"fixturepy/cycle_a":    0,
 		"fixturepy/cycle_b":    0,
 		"fixturepy/operations": 0,
+		"fixturepy/rel_a":      0,
+		"fixturepy/rel_b":      0,
 		"fixturepy/ring_a":     0,
 		"fixturepy/ring_b":     0,
 		"fixturepy/wide":       0,

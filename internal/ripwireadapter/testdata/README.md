@@ -11,7 +11,9 @@ History: first captured from ripwire 0.6.9 @ `bedc0cd` by
 move by `openspec/changes/bump-ripwire-pin` (tasks 1.1–1.4, 7.1–7.3); the
 Python recordings (`python`, `python-mixed`, derived `python-zero-edge`)
 re-captured for the `ring_a`/`ring_b` fixture by
-`openspec/changes/wide-form-cycle-edges` (task 2.2).
+`openspec/changes/wide-form-cycle-edges` (task 2.2), and again for the
+`rel_a`/`rel_b` fixture by `openspec/changes/relative-import-edges`
+(task 3.2) with the same 0.7.0 release binary.
 
 ## Layout
 
@@ -68,6 +70,13 @@ as above) after adding the `ring_a`/`ring_b` fixture packages; `typescript/`
 and every `version.txt` are unchanged. Against the pre-ring recordings,
 `python/arch.txt` differs only in the two new `<m>` rows, `fixturepy`
 `ca="2"`, the module counts, and `propagation_cost`.
+
+`relative-import-edges` re-captured the same three directories with this
+same 0.7.0 binary after adding the `rel_a`/`rel_b` fixture packages, twice
+each with byte-identical results; `typescript/` and every `version.txt` are
+unchanged. Against the pre-rel recordings, `python/arch.txt` differs only in
+the two new `<m>` rows, `fixturepy` `ca="3"`, the module counts, and
+`propagation_cost`.
 
 ## Capture commands (exact, as run)
 
@@ -127,7 +136,7 @@ test (an edgeless crawl over a non-empty corpus).
 
 ## Flag choices and why
 
-- **`--limit=1000` (`--deps` only)** — the fixtures contain at most 19
+- **`--limit=1000` (`--deps` only)** — the fixtures contain at most 22
   in-corpus files, so 1000 can never truncate; the recorded roots carry
   `capped="0" has_more="0"` plus the full paging attributes
   (`total= offset= limit=`), proving nothing was cut. In the pinned release
@@ -167,15 +176,15 @@ Results — every recording byte-identical across the two runs:
 
 | Recording | Bytes |
 |-----------|-------|
-| `python/arch.txt` | 2944 |
-| `python/deps.xml` | 2550 |
-| `python/cc.json` | 3913 |
+| `python/arch.txt` | 3177 |
+| `python/deps.xml` | 2870 |
+| `python/cc.json` | 4421 |
 | `typescript/arch.txt` | 2172 |
 | `typescript/deps.xml` | 2123 |
 | `typescript/cc.json` | 1672 |
-| `python-mixed/arch.txt` | 4311 |
-| `python-mixed/deps.xml` | 3883 |
-| `python-mixed/cc.json` | 4014 |
+| `python-mixed/arch.txt` | 4544 |
+| `python-mixed/deps.xml` | 4203 |
+| `python-mixed/cc.json` | 4522 |
 | `*/version.txt` | 111 |
 
 ## Reading the recordings (fixture-specific facts)
@@ -205,11 +214,19 @@ Results — every recording byte-identical across the two runs:
   wide-form-cycle-edges`). `ring_a/__init__.py` (`<inc t="fixturepy"/>`)
   is the same shape: its member edge to `ring_b` is the only edge closing
   the `ring_a`/`ring_b` cycle.
+- **Relative imports are recorded as written too.** `rel_a/__init__.py`
+  lists `<inc t="..rel_b.api"/>` and `rel_b/__init__.py` lists
+  `<inc t=".."/>`; ripwire's `--arch` resolves both (and the `rel_a` member
+  of `from .. import rel_a`), so `fixturepy/rel_b` reads `ce="2"`. The
+  adapter resolves the targets against the importing package and recovers
+  the member with its light parse (`openspec/changes/relative-import-edges`);
+  together they are the only edges closing the `rel_a`/`rel_b` cycle.
 - **Python `deps.xml` has no `<cycles>` element.** The fixture's import
   cycle resolves file-level as `cycle_a/__init__.py → cycle_b/api.py` and
   `cycle_b/__init__.py → cycle_a/api.py` (each edge one-way at file grain);
   the ring pair likewise (`ring_a/__init__.py → ring_b/__init__.py →
-  ring_a/api.py`).
+  ring_a/api.py`), and the rel pair (`rel_b/__init__.py →
+  rel_a/__init__.py → rel_b/api.py`).
   The two-directory cycle exists at directory grain and is the adapter's
   own SCC derivation. The TypeScript `deps.xml` carries a `<cycles>`
   element with the size-2 cycle and `<health shape="tangled"

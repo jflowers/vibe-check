@@ -47,9 +47,11 @@ func TestIntegration_PythonFixturePipeline(t *testing.T) {
 	}
 
 	fixturepy := module("fixturepy")
-	if fixturepy.Ca != 2 || fixturepy.Ce != 0 {
-		// wide and ring_a both import `from fixturepy import ...`.
-		t.Errorf("fixturepy ca/ce: got %d/%d, want 2/0", fixturepy.Ca, fixturepy.Ce)
+	if fixturepy.Ca != 3 || fixturepy.Ce != 0 {
+		// wide and ring_a both import `from fixturepy import ...`; rel_b
+		// imports `from .. import rel_a`, which ripwire resolves to
+		// fixturepy/__init__.py.
+		t.Errorf("fixturepy ca/ce: got %d/%d, want 3/0", fixturepy.Ca, fixturepy.Ce)
 	}
 	if fixturepy.AbstractTypes != 1 || fixturepy.ExportedTypes != 4 {
 		t.Errorf("fixturepy abstract/exported: got %d/%d, want 1/4", fixturepy.AbstractTypes, fixturepy.ExportedTypes)
@@ -89,9 +91,12 @@ func TestIntegration_PythonFixturePipeline(t *testing.T) {
 	}
 
 	// The ring pair closes only through the wide-form member edge
-	// ring_a → ring_b (openspec/changes/wide-form-cycle-edges).
+	// ring_a → ring_b (openspec/changes/wide-form-cycle-edges); the rel
+	// pair only through relative imports (openspec/changes/
+	// relative-import-edges).
 	wantCycles := []metrics.Cycle{
 		{"fixturepy.cycle_a", "fixturepy.cycle_b"},
+		{"fixturepy.rel_a", "fixturepy.rel_b"},
 		{"fixturepy.ring_a", "fixturepy.ring_b"},
 	}
 	if !reflect.DeepEqual(graph.Cycles, wantCycles) {
