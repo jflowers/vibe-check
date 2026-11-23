@@ -153,9 +153,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   only when ripwire recorded the same statement and `pkg/subpkg` is a module.
   Ca/Ce/I/A/D are unchanged, but `Cycles` can gain a cycle that already
   existed in the code, so a `diff` whose base predates this change can
-  report it as new. Relative imports (`from . import x`) still produce no
-  edges.
+  report it as new.
   Spec: `openspec/changes/wide-form-cycle-edges/specs/wide-form-cycle-edges/spec.md`
+- Python cycle detection no longer misses cycles closed through relative
+  imports (`from ..pkg.api import f`, `from .. import sub`). ripwire's
+  `--deps` records them as written (`..pkg.api`, `..`), and the adapter
+  classified any leading-dot target as an external dependency, so they added
+  no directory edge. Relative targets now resolve against the importing
+  file's package (never climbing above the crawl root or guessing an
+  ancestor the import does not name; such targets are dropped under the
+  `ambiguity-rate` warning), and `from .. import sub` adds the member edge to
+  `sub`. Ca/Ce/I/A/D are unchanged, but `Cycles` can gain a cycle that
+  already existed in the code, so a `diff` whose base predates this change
+  can report it as new.
+  Spec: `openspec/changes/relative-import-edges/specs/relative-import-edges/spec.md`
 
 ## [0.3.0] - 2026-10-28
 

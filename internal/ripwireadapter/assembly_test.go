@@ -116,13 +116,13 @@ func TestAnalyze_ZeroCouplingGuardFires(t *testing.T) {
 		}
 		t.Fatalf("warnings %v: want %q present", codes, warningZeroCouplingGuard)
 	}
-	// The census walks testdata/python/src, which holds 19 source files
+	// The census walks testdata/python/src, which holds 22 source files
 	// (including 2 under operations/build, which the pinned release indexes
 	// because git tracks it; the census counts denylist-named directories
 	// regardless, deliberately over-counting rather than disengaging the
 	// guard).
-	if !strings.Contains(guard.Message, "0 dependency edges") || !strings.Contains(guard.Message, "19 source files") {
-		t.Errorf("guard message: got %q, want it to name both counts (0 edges, 19 files)", guard.Message)
+	if !strings.Contains(guard.Message, "0 dependency edges") || !strings.Contains(guard.Message, "22 source files") {
+		t.Errorf("guard message: got %q, want it to name both counts (0 edges, 22 files)", guard.Message)
 	}
 	if len(graph.Cycles) != 0 {
 		t.Errorf("cycles: got %v, want none for an edgeless graph", graph.Cycles)
@@ -214,6 +214,8 @@ func TestAnalyze_StructuralInvariants(t *testing.T) {
 					"fixturepy.cycle_b":          16,
 					"fixturepy.operations":       1,
 					"fixturepy.operations.build": 15,
+					"fixturepy.rel_a":            12,
+					"fixturepy.rel_b":            16,
 					"fixturepy.ring_a":           18,
 					"fixturepy.ring_b":           10,
 					"fixturepy.wide":             9,

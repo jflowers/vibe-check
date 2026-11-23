@@ -42,6 +42,7 @@ func TestDeriveCycles_RecordedPython(t *testing.T) {
 	cycles, _, _ := deriveForRecorded(t, "python")
 	want := []metrics.Cycle{
 		{"fixturepy.cycle_a", "fixturepy.cycle_b"},
+		{"fixturepy.rel_a", "fixturepy.rel_b"},
 		{"fixturepy.ring_a", "fixturepy.ring_b"},
 	}
 	if !reflect.DeepEqual(cycles, want) {
@@ -51,9 +52,12 @@ func TestDeriveCycles_RecordedPython(t *testing.T) {
 
 // TestDeriveCycles_RingNeedsMemberEdges pins that the ring cycle closes
 // only through the wide-form member edge ring_a → ring_b
-// (openspec/changes/wide-form-cycle-edges): mapped without the
-// member-import light parse, the name-resolved edges alone are acyclic
-// across the ring and only the cycle_a/cycle_b pair remains.
+// (openspec/changes/wide-form-cycle-edges), and the rel cycle only through
+// the relative member edge rel_b → rel_a (openspec/changes/
+// relative-import-edges): mapped without the member-import light parse,
+// the include-target edges alone are acyclic across both pairs and only
+// the cycle_a/cycle_b pair remains. The relative base edge rel_a → rel_b
+// comes from the include targets alone, so it is still present.
 func TestDeriveCycles_RingNeedsMemberEdges(t *testing.T) {
 	t.Parallel()
 
@@ -74,6 +78,14 @@ func TestDeriveCycles_RingNeedsMemberEdges(t *testing.T) {
 	want := []metrics.Cycle{{"fixturepy.cycle_a", "fixturepy.cycle_b"}}
 	if !reflect.DeepEqual(cycles, want) {
 		t.Errorf("cycles without member edges: got %v, want %v", cycles, want)
+	}
+	relBase := moduleEdge{From: "fixturepy.rel_a", To: "fixturepy.rel_b"}
+	found := false
+	for _, edge := range mapping.Edges {
+		found = found || edge == relBase
+	}
+	if !found {
+		t.Errorf("edges without member edges: got %v, want %v present (relative base edge)", mapping.Edges, relBase)
 	}
 }
 

@@ -114,16 +114,21 @@ func TestMapToModules_RecordedPython(t *testing.T) {
 	// "fixturepy" alone; the member-import light parse recovers cycle_b
 	// (anchored to that include), so wide's InternalOut equals its Ce=2 and
 	// cycle_b's InternalIn equals its Ca=2 (openspec/changes/
-	// wide-form-cycle-edges). On this fixture every module's internal
-	// counters now agree with its arch row.
+	// wide-form-cycle-edges). Relative targets (rel_a's "..rel_b.api",
+	// rel_b's "..") resolve against the importing package and are not
+	// external; rel_b's member edge to rel_a comes from `from .. import
+	// rel_a` (openspec/changes/relative-import-edges). On this fixture
+	// every module's internal counters agree with its arch row.
 	want := map[string]mappedModule{
-		"fixturepy":                  {Identity: "fixturepy", Name: "fixturepy", Ca: 2, Ce: 0, Types: 5, Abstract: 0, InternalIn: 2, ExternalOut: 1},
+		"fixturepy":                  {Identity: "fixturepy", Name: "fixturepy", Ca: 3, Ce: 0, Types: 5, Abstract: 0, InternalIn: 3, ExternalOut: 1},
 		"fixturepy.alias":            {Identity: "fixturepy.alias", Name: "alias", Ca: 0, Ce: 1, InternalOut: 1},
 		"fixturepy.collide":          {Identity: "fixturepy.collide", Name: "collide", Ca: 0, Ce: 0, ExternalOut: 1},
 		"fixturepy.cycle_a":          {Identity: "fixturepy.cycle_a", Name: "cycle_a", Ca: 2, Ce: 1, InternalOut: 1, InternalIn: 2},
 		"fixturepy.cycle_b":          {Identity: "fixturepy.cycle_b", Name: "cycle_b", Ca: 2, Ce: 1, InternalOut: 1, InternalIn: 2},
 		"fixturepy.operations":       {Identity: "fixturepy.operations", Name: "operations", Ca: 0, Ce: 0},
 		"fixturepy.operations.build": {Identity: "fixturepy.operations.build", Name: "build", Ca: 0, Ce: 0},
+		"fixturepy.rel_a":            {Identity: "fixturepy.rel_a", Name: "rel_a", Ca: 1, Ce: 1, InternalOut: 1, InternalIn: 1},
+		"fixturepy.rel_b":            {Identity: "fixturepy.rel_b", Name: "rel_b", Ca: 1, Ce: 2, InternalOut: 2, InternalIn: 1},
 		"fixturepy.ring_a":           {Identity: "fixturepy.ring_a", Name: "ring_a", Ca: 1, Ce: 2, InternalOut: 2, InternalIn: 1},
 		"fixturepy.ring_b":           {Identity: "fixturepy.ring_b", Name: "ring_b", Ca: 1, Ce: 1, InternalOut: 1, InternalIn: 1},
 		"fixturepy.wide":             {Identity: "fixturepy.wide", Name: "wide", Ca: 0, Ce: 2, InternalOut: 2},
@@ -154,6 +159,9 @@ func TestMapToModules_RecordedPython(t *testing.T) {
 		{From: "fixturepy.alias", To: "fixturepy.cycle_a"},
 		{From: "fixturepy.cycle_a", To: "fixturepy.cycle_b"},
 		{From: "fixturepy.cycle_b", To: "fixturepy.cycle_a"},
+		{From: "fixturepy.rel_a", To: "fixturepy.rel_b"},
+		{From: "fixturepy.rel_b", To: "fixturepy"},
+		{From: "fixturepy.rel_b", To: "fixturepy.rel_a"},
 		{From: "fixturepy.ring_a", To: "fixturepy"},
 		{From: "fixturepy.ring_a", To: "fixturepy.ring_b"},
 		{From: "fixturepy.ring_b", To: "fixturepy.ring_a"},

@@ -37,7 +37,9 @@
 //     ripwire's capped cycle listing. For Python, the edges also include
 //     the member edges of `from pkg import subpkg` imports, recovered by
 //     the adapter's own light parse (--deps records only `pkg`) and
-//     anchored to the include ripwire recorded.
+//     anchored to the include ripwire recorded. Relative targets and
+//     member bases (`..pkg.api`, `..`) resolve against the importing
+//     file's package; they are never external.
 //   - Duplication: unsupported. It is never declared as a capability, is
 //     zero-valued in results, and is reported as an "unsupported-metric"
 //     warning.

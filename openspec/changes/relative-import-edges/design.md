@@ -63,7 +63,7 @@ Only the adapter's edge set is missing them.
 
 `resolveTarget` gains a branch for Python targets that start with `.`. It
 delegates to a pure helper,
-`relativeBaseDir(sourceDir, target string) (dir string, ok bool)`, which:
+`relativeBaseDir(sourceDir, target string) (anchor, dir string, ok bool)`, which:
 
 1. Splits `target` into `k` leading dots and remainder `R`. `R` can be empty
    (`.`, `..`).
@@ -73,8 +73,8 @@ delegates to a pure helper,
    It then drops `k − 1` trailing path components. The crawl root `.` has
    zero components. If fewer than `k − 1` components exist, `ok` is false:
    the import climbs above the crawl root.
-3. Returns the anchor directory joined with `R`'s components (dots become
-   `/`).
+3. Returns the anchor and the anchor directory joined with `R`'s components
+   (dots become `/`). The anchor bounds the prefix search below.
 
 Then the resolution does the following:
 

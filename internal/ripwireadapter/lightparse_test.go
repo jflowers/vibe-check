@@ -27,6 +27,8 @@ func TestPythonAbstractnessScan_Fixture(t *testing.T) {
 		"fixturepy/cycle_a":    {},
 		"fixturepy/cycle_b":    {},
 		"fixturepy/operations": {},
+		"fixturepy/rel_a":      {},
+		"fixturepy/rel_b":      {},
 		"fixturepy/ring_a":     {},
 		"fixturepy/ring_b":     {},
 		"fixturepy/wide":       {},
