@@ -34,6 +34,9 @@ Properties shared by every fixture file:
 | `python/src/fixturepy/ring_a/__init__.py` | Ring side A: `from fixturepy import ring_b` — wide-form import of a subpackage; `--deps` records only `fixturepy`, so the A → B edge comes from the member-import light parse (openspec/changes/wide-form-cycle-edges). |
 | `python/src/fixturepy/ring_a/api.py` | Defines `marker`, imported by ring side B. |
 | `python/src/fixturepy/ring_b/__init__.py` | Ring side B: `from fixturepy.ring_a.api import marker` (name-resolved edge B → A). Its docstring quotes the ring A import, exercising the light parse's string blanking. |
+| `python/src/fixturepy/rel_a/__init__.py` | Relative side A: `from ..rel_b.api import token` — a relative **base** that `--deps` records verbatim as `..rel_b.api`; resolved against the importing package to the edge A → B (openspec/changes/relative-import-edges). |
+| `python/src/fixturepy/rel_b/__init__.py` | Relative side B: `from .. import rel_a` — a relative **member** of the bare base `..`; `--deps` records only `..`, so the B → A edge comes from the member-import light parse. |
+| `python/src/fixturepy/rel_b/api.py` | Defines `token`, imported by relative side A. |
 | `python/src/fixturepy/alias/__init__.py` | Package marker for the aliased-import scenario. |
 | `python/src/fixturepy/alias/consumer.py` | `import fixturepy.cycle_a.api as ca` — aliased import (ripwire#478 gap 2): resolves to an edge into `fixturepy/cycle_a`. |
 | `python/src/fixturepy/collide/__init__.py` | Package marker for the stdlib-name collision scenario. |
@@ -61,6 +64,13 @@ acyclic too (`ring_a/__init__.py` → `ring_b/__init__.py` → `ring_a/api.py`),
 ripwire's own `<cycles>` listing does not report it and detection must come
 from the adapter's derivation. The `ring_` prefix keeps the directories out of
 the `cycle_a`/`cycle_b` layers in `recorded/arch-rules.txt`.
+
+`rel_a` and `rel_b` form a two-directory cycle that closes **only** through
+relative imports: before relative resolution both targets (`..rel_b.api`,
+`..`) were classified external and neither edge existed. At file grain the
+pair is acyclic (`rel_b/__init__.py` → `rel_a/__init__.py` → `rel_b/api.py`),
+so ripwire's `<cycles>` listing does not report it. The `rel_` prefix matches
+no layer substring in `recorded/arch-rules.txt`.
 
 `wide`, `alias`, and `collide` each sit in their own directory module so each
 upstream import fix (openspec/changes/bump-ripwire-pin design D7) shows
