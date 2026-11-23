@@ -105,9 +105,9 @@ carries the warning.
 The `ambiguity-rate` message currently says targets "land inside the crawl
 but match no module directory". A relative import that climbs above the
 crawl root does not land inside the crawl. The message is widened to cover
-both cases: "some include targets (in-crawl names, or relative imports
-climbing above the crawl root) match no module directory; their edges were
-dropped from the module graph". A new warning code would add schema-facing
+both cases: "some include targets (in-crawl names, or relative imports,
+including those climbing above the crawl root) match no module directory;
+their edges were dropped from the module graph". A new warning code would add schema-facing
 surface for a case that is invalid Python in a correctly rooted crawl.
 
 ### D3: Member edges for relative bases

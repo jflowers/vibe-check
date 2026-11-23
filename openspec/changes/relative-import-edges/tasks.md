@@ -27,11 +27,11 @@
 - [x] 4.1 [P] CHANGELOG `Unreleased`: a Fixed entry. Python relative imports now produce edges and are no longer counted external, and a `diff` across the upgrade can report a previously missed cycle as new. Verify: the entry is present.
 - [x] 4.2 [P] Assess README and AGENTS.md (the `cycle-approximation` and `ambiguity-rate` rows, and the project structure). Update them where they describe relative imports or the ambiguity message. Verify: `grep -rn "relative" README.md AGENTS.md` is accurate.
 - [x] 4.3 [P] In `wide-form-cycle-edges/tasks.md` 6.1, record this change as the follow-up. Verify: the link is present.
-- [ ] 4.4 File the documentation issue for the user-facing change (the AGENTS.md documentation gate) and record its number here.
+- [x] 4.4 File the documentation issue for the user-facing change (the AGENTS.md documentation gate) and record its number here. Filed: #99.
 
 ## 5. Gates
 
 - [x] 5.1 CI parity: run every command in `.github/workflows/ci.yml` locally with ripwire off PATH. Verify: all pass, and coverage floors are only raised.
-- [ ] 5.2 Run the review council (Adversary, Architect, Guard, Tester). Resolve every REQUEST CHANGES. Verify: all reviewers APPROVE.
+- [x] 5.2 Run the review council (Adversary, Architect, Guard, Tester). Resolve every REQUEST CHANGES. Verify: all reviewers APPROVE.
 - [ ] 5.3 Push `opsx/relative-import-edges` and open a draft PR based on `opsx/wide-form-cycle-edges`, stating that it cannot merge before #98 and #96. Verify: the PR is open.
 - [ ] 5.4 After #98 and #96 merge, rebase onto `main`. If Phase B re-captured with a different binary, repeat 3.2–3.3 and 5.1. Mark the PR ready.

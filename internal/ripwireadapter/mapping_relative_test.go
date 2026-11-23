@@ -92,6 +92,7 @@ func TestResolveTarget_RelativeTable(t *testing.T) {
 		{name: "subpackage below the anchor", sourceDir: "pk", target: ".a.deep.x", want: targetResolution{identity: "pk.a.deep"}},
 		{name: "climbing above the crawl root", sourceDir: "pk/a", target: "....", want: targetResolution{unresolved: true}},
 		{name: "malformed relative target", sourceDir: "pk/a", target: ".x..y", want: targetResolution{unresolved: true}},
+		{name: "root-level file walks back to a non-module root", sourceDir: ".", target: ".x.y", want: targetResolution{unresolved: true}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -125,6 +126,24 @@ func TestResolveTarget_RelativeNoAncestorGuess(t *testing.T) {
 	if want := (targetResolution{unresolved: true}); got != want {
 		t.Errorf("got %+v, want %+v", got, want)
 	}
+}
+
+func TestMapToModules_RelativeNoAncestorGuess(t *testing.T) {
+	t.Parallel()
+
+	// Spec scenario "Relative name below a missing anchor is not guessed":
+	// the anchor "ns" has no --arch row, its ancestor "." does; no edge to
+	// "." and ambiguity-rate fires.
+	table := syntheticArch(archModuleRow{Path: "."}, archModuleRow{Path: "ns/inner"})
+	deps := depsGraph{Rows: []depsFile{{Path: "ns/inner/m.py", IncTargets: []string{"..x"}}}}
+	mapping, err := mapToModules(languagePython, table, deps, nil)
+	if err != nil {
+		t.Fatalf("mapToModules: %v", err)
+	}
+	if len(mapping.Edges) != 0 {
+		t.Errorf("edges: got %v, want none", mapping.Edges)
+	}
+	assertHasCodes(t, mapping.Warnings, []string{warningAmbiguityRate}, nil)
 }
 
 func TestMapToModules_RelativeTargets(t *testing.T) {
@@ -163,6 +182,28 @@ func TestMapToModules_RelativeTargets(t *testing.T) {
 func TestMapToModules_RelativeClimbAboveRoot(t *testing.T) {
 	t.Parallel()
 
+	// "...." from pk/a climbs three directories over two components: above
+	// the crawl root.
+	deps := depsGraph{Rows: []depsFile{{Path: "pk/a/x.py", IncTargets: []string{"...."}}}}
+	mapping, err := mapToModules(languagePython, relativeArch(), deps, nil)
+	if err != nil {
+		t.Fatalf("mapToModules: %v", err)
+	}
+	if len(mapping.Edges) != 0 {
+		t.Errorf("edges: got %v, want none", mapping.Edges)
+	}
+	if got := moduleByIdentity(t, mapping, "pk.a").ExternalOut; got != 0 {
+		t.Errorf("external out: got %d, want 0", got)
+	}
+	assertHasCodes(t, mapping.Warnings, []string{warningAmbiguityRate}, nil)
+}
+
+func TestMapToModules_RelativeMissingAnchor(t *testing.T) {
+	t.Parallel()
+
+	// "...." from pk/a/deep anchors at the crawl root ".", which has no
+	// --arch row, and the bare base names nothing below it: unresolved,
+	// never external, and disclosed under ambiguity-rate.
 	deps := depsGraph{Rows: []depsFile{{Path: "pk/a/deep/__init__.py", IncTargets: []string{"...."}}}}
 	mapping, err := mapToModules(languagePython, relativeArch(), deps, nil)
 	if err != nil {
@@ -207,6 +248,27 @@ func TestMapToModules_RelativeMemberEdge(t *testing.T) {
 	}
 }
 
+func TestMapToModules_RelativeMemberAtCrawlRoot(t *testing.T) {
+	t.Parallel()
+
+	// A relative member base resolving to the crawl root itself: `from ..
+	// import b` in pk/x.py names the root-level module "b" (not "./b").
+	table := syntheticArch(archModuleRow{Path: "pk"}, archModuleRow{Path: "b"})
+	deps := depsGraph{Rows: []depsFile{{Path: "pk/x.py", IncTargets: []string{".."}}}}
+	members := map[string][]memberImport{"pk/x.py": {{Base: "..", Name: "b"}}}
+	mapping, err := mapToModules(languagePython, table, deps, members)
+	if err != nil {
+		t.Fatalf("mapToModules: %v", err)
+	}
+	wantEdges := []moduleEdge{{From: "pk", To: "b"}}
+	if !reflect.DeepEqual(mapping.Edges, wantEdges) {
+		t.Errorf("edges: got %v, want %v", mapping.Edges, wantEdges)
+	}
+	// The bare base ".." itself anchors at the root, which has no --arch
+	// row: unresolved.
+	assertHasCodes(t, mapping.Warnings, []string{warningAmbiguityRate}, nil)
+}
+
 func TestMapToModules_RelativeMemberUnanchored(t *testing.T) {
 	t.Parallel()
 
@@ -240,6 +302,9 @@ func TestMapToModules_RelativeMemberClimb(t *testing.T) {
 	}
 	if len(mapping.Edges) != 0 {
 		t.Errorf("edges: got %v, want none", mapping.Edges)
+	}
+	if got := moduleByIdentity(t, mapping, "pk").ExternalOut; got != 0 {
+		t.Errorf("external out: got %d, want 0", got)
 	}
 	assertHasCodes(t, mapping.Warnings, []string{warningAmbiguityRate}, nil)
 }

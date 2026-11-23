@@ -69,8 +69,8 @@ type moduleMapping struct {
 	Edges []moduleEdge
 	// Warnings carries directory-as-module (always), name-resolved-edges
 	// (Python dotted-target resolution), ambiguity-rate (in-crawl targets
-	// matching no module, or Python relative imports climbing above the
-	// crawl root), and coupling-floor
+	// matching no module, or Python relative imports resolving to no
+	// module directory), and coupling-floor
 	// (modules whose Ca/Ce ripwire reports only as floors).
 	Warnings []metrics.Warning
 }
@@ -188,9 +188,10 @@ func mapToModules(language string, table archTable, deps depsGraph, members map[
 			}
 		}
 
-		// Member edges of wide-form imports, anchored to an include
-		// target ripwire recorded for this file. Python targets are
-		// name-resolved, so nameResolved is already set by the anchor.
+		// Member edges of wide-form and relative imports, anchored to an
+		// include target ripwire recorded for this file. An absolute
+		// anchor already set nameResolved; a relative anchor is
+		// path-resolved and does not set it.
 		if len(members[file.Path]) == 0 {
 			continue
 		}
@@ -232,8 +233,9 @@ func mapToModules(language string, table archTable, deps depsGraph, members map[
 	if ambiguous {
 		mapping.Warnings = append(mapping.Warnings, metrics.Warning{
 			Code: warningAmbiguityRate,
-			Message: "some include targets (in-crawl names, or relative imports climbing above " +
-				"the crawl root) match no module directory; their edges were dropped from the module graph",
+			Message: "some include targets (in-crawl names, or relative imports, including those " +
+				"climbing above the crawl root) match no module directory; their edges were dropped " +
+				"from the module graph",
 		})
 	}
 	return mapping, nil
@@ -367,10 +369,7 @@ func memberDir(sourceDir string, member memberImport) (string, bool) {
 	if !ok {
 		return "", false
 	}
-	if base == "." {
-		return member.Name, true
-	}
-	return base + "/" + member.Name, true
+	return path.Join(base, member.Name), true
 }
 
 // joinDir joins slash-form path components, mapping none to ".".

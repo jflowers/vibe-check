@@ -41,8 +41,7 @@ var pyIdentifierRegex = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
 // per root-relative slash-form file path (the same form as ripwire's
 // --deps p= attribute), the sorted, de-duplicated member imports of every
 // `from Base import names` statement (absolute or relative base) in the
-// file. Files without
-// such statements are absent from the map.
+// file. Files without such statements are absent from the map.
 //
 // Directories ripwire prunes (the shared denylist) are skipped, matching
 // the coupling data's view; the crawl root itself is never skipped.
