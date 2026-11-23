@@ -20,23 +20,23 @@ func TestParseDepsOutput_RecordedPython(t *testing.T) {
 		t.Fatalf("parseDepsOutput: %v", err)
 	}
 
-	if graph.Files != 6 || graph.Shown != 6 || graph.Total != 6 || graph.Capped != 0 || graph.HasMore != 0 {
-		t.Errorf("paging: got files=%d shown=%d total=%d capped=%d has_more=%d, want 6/6/6/0/0",
+	if graph.Files != 8 || graph.Shown != 8 || graph.Total != 8 || graph.Capped != 0 || graph.HasMore != 0 {
+		t.Errorf("paging: got files=%d shown=%d total=%d capped=%d has_more=%d, want 8/8/8/0/0",
 			graph.Files, graph.Shown, graph.Total, graph.Capped, graph.HasMore)
 	}
-	if graph.Limit != 1000 || graph.Offset != 0 || graph.NextOffset != 6 {
-		t.Errorf("paging window: got limit=%d offset=%d next_offset=%d, want 1000/0/6",
+	if graph.Limit != 1000 || graph.Offset != 0 || graph.NextOffset != 8 {
+		t.Errorf("paging window: got limit=%d offset=%d next_offset=%d, want 1000/0/8",
 			graph.Limit, graph.Offset, graph.NextOffset)
 	}
 	if graph.Root != "." {
 		t.Errorf("root: got %q, want %q", graph.Root, ".")
 	}
 
-	if graph.Health.Files != 16 || graph.Health.DepFiles != 16 {
-		t.Errorf("health: got files=%d dep_files=%d, want 16/16", graph.Health.Files, graph.Health.DepFiles)
+	if graph.Health.Files != 19 || graph.Health.DepFiles != 19 {
+		t.Errorf("health: got files=%d dep_files=%d, want 19/19", graph.Health.Files, graph.Health.DepFiles)
 	}
-	if graph.Health.CCD != 22 || graph.Health.ACD != 1.4 || graph.Health.NCCD != 0.41 {
-		t.Errorf("health: got ccd=%d acd=%v nccd=%v, want 22/1.4/0.41", graph.Health.CCD, graph.Health.ACD, graph.Health.NCCD)
+	if graph.Health.CCD != 29 || graph.Health.ACD != 1.5 || graph.Health.NCCD != 0.43 {
+		t.Errorf("health: got ccd=%d acd=%v nccd=%v, want 29/1.5/0.43", graph.Health.CCD, graph.Health.ACD, graph.Health.NCCD)
 	}
 	if graph.Health.Shape != "horizontal" {
 		t.Errorf("health shape: got %q, want horizontal", graph.Health.Shape)
@@ -45,14 +45,18 @@ func TestParseDepsOutput_RecordedPython(t *testing.T) {
 	// cycle_b/__init__.py's afferent edge comes from the wide-form
 	// `from fixturepy import cycle_b` in wide/consumer.py: ripwire resolves
 	// it, but that file's <inc t=> records only "fixturepy" (as written).
-	if len(graph.Godfiles) != 4 {
-		t.Fatalf("godfiles: got %d, want 4", len(graph.Godfiles))
+	// ring_b/__init__.py's afferent edge comes the same way from
+	// ring_a/__init__.py's `from fixturepy import ring_b`.
+	if len(graph.Godfiles) != 6 {
+		t.Fatalf("godfiles: got %d, want 6", len(graph.Godfiles))
 	}
 	wantGod := map[string]int{
+		"fixturepy/__init__.py":         2,
 		"fixturepy/cycle_a/api.py":      2,
-		"fixturepy/__init__.py":         1,
 		"fixturepy/cycle_b/__init__.py": 1,
 		"fixturepy/cycle_b/api.py":      1,
+		"fixturepy/ring_a/api.py":       1,
+		"fixturepy/ring_b/__init__.py":  1,
 	}
 	for _, g := range graph.Godfiles {
 		if want, ok := wantGod[g.Path]; !ok || g.Afferent != want {
@@ -71,8 +75,10 @@ func TestParseDepsOutput_RecordedPython(t *testing.T) {
 		"fixturepy/cycle_b/__init__.py": {"fixturepy.cycle_a.api"},
 		"fixturepy/collide/consumer.py": {"logging"},
 		"fixturepy/models.py":           {"abc"},
+		"fixturepy/ring_a/__init__.py":  {"fixturepy"},
+		"fixturepy/ring_b/__init__.py":  {"fixturepy.ring_a.api"},
 	}
-	wantAfferent := map[string]int{"fixturepy/cycle_b/__init__.py": 1}
+	wantAfferent := map[string]int{"fixturepy/cycle_b/__init__.py": 1, "fixturepy/ring_b/__init__.py": 1}
 	if len(graph.Rows) != len(wantFiles) {
 		t.Fatalf("files: got %d, want %d", len(graph.Rows), len(wantFiles))
 	}
@@ -226,8 +232,8 @@ func TestParseCCOutput_RecordedPython(t *testing.T) {
 		t.Fatalf("parseCCOutput: %v", err)
 	}
 
-	if len(files) != 16 {
-		t.Fatalf("files: got %d (%v), want 16 (tracked operations/build is indexed)", len(files), ccPaths(files))
+	if len(files) != 19 {
+		t.Fatalf("files: got %d (%v), want 19 (tracked operations/build is indexed)", len(files), ccPaths(files))
 	}
 	if n := countCCFilesWithPrefix(files, "fixturepy/operations/build"); n != 2 {
 		t.Errorf("tracked operations/build: got %d files under it, want 2", n)

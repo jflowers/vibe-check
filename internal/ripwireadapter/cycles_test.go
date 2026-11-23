@@ -28,7 +28,7 @@ func deriveForRecorded(t *testing.T, language string) ([]metrics.Cycle, moduleMa
 	if err != nil {
 		t.Fatalf("parseDepsOutput: %v", err)
 	}
-	mapping, err := mapToModules(language, table, deps)
+	mapping, err := mapToModules(language, table, deps, fixtureMemberImports(t, language))
 	if err != nil {
 		t.Fatalf("mapToModules: %v", err)
 	}
@@ -40,9 +40,40 @@ func TestDeriveCycles_RecordedPython(t *testing.T) {
 	t.Parallel()
 
 	cycles, _, _ := deriveForRecorded(t, "python")
-	want := []metrics.Cycle{{"fixturepy.cycle_a", "fixturepy.cycle_b"}}
+	want := []metrics.Cycle{
+		{"fixturepy.cycle_a", "fixturepy.cycle_b"},
+		{"fixturepy.ring_a", "fixturepy.ring_b"},
+	}
 	if !reflect.DeepEqual(cycles, want) {
 		t.Errorf("cycles: got %v, want %v", cycles, want)
+	}
+}
+
+// TestDeriveCycles_RingNeedsMemberEdges pins that the ring cycle closes
+// only through the wide-form member edge ring_a → ring_b
+// (openspec/changes/wide-form-cycle-edges): mapped without the
+// member-import light parse, the name-resolved edges alone are acyclic
+// across the ring and only the cycle_a/cycle_b pair remains.
+func TestDeriveCycles_RingNeedsMemberEdges(t *testing.T) {
+	t.Parallel()
+
+	recordings := filepath.Join("testdata", "recorded", "python")
+	table, err := parseArchOutput(readRecording(t, filepath.Join(recordings, "arch.txt")))
+	if err != nil {
+		t.Fatalf("parseArchOutput: %v", err)
+	}
+	deps, err := parseDepsOutput(readRecording(t, filepath.Join(recordings, "deps.xml")))
+	if err != nil {
+		t.Fatalf("parseDepsOutput: %v", err)
+	}
+	mapping, err := mapToModules(languagePython, table, deps, nil)
+	if err != nil {
+		t.Fatalf("mapToModules: %v", err)
+	}
+	cycles, _ := deriveCycles(mapping, deps)
+	want := []metrics.Cycle{{"fixturepy.cycle_a", "fixturepy.cycle_b"}}
+	if !reflect.DeepEqual(cycles, want) {
+		t.Errorf("cycles without member edges: got %v, want %v", cycles, want)
 	}
 }
 

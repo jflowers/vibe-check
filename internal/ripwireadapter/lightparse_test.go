@@ -27,6 +27,8 @@ func TestPythonAbstractnessScan_Fixture(t *testing.T) {
 		"fixturepy/cycle_a":    {},
 		"fixturepy/cycle_b":    {},
 		"fixturepy/operations": {},
+		"fixturepy/ring_a":     {},
+		"fixturepy/ring_b":     {},
 		"fixturepy/wide":       {},
 	}
 	if !reflect.DeepEqual(results, want) {

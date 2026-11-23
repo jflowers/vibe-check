@@ -94,7 +94,7 @@ vibe-check analyze ./my-python-project
 | Abstractness | Python: vibe-check light parse (ABC / ABCMeta / Protocol classes); TypeScript: ripwire interface share |
 | Distance, Zone | derived (`metrics.Compute*`) |
 | LCOM4 | vibe-check light parse (methods sharing `self.X` / `this.X` fields) |
-| Cycles | vibe-check's own SCC derivation over name-resolved ripwire `--deps` import targets |
+| Cycles | vibe-check's own SCC derivation over name-resolved ripwire `--deps` import targets, plus (Python) `from pkg import subpkg` member edges from vibe-check's own light parse |
 | Duplication | unsupported — zero-valued, with an `unsupported-metric` warning |
 | TotalLines | ripwire `--export=cc.json` census — physical lines of indexed source files; config-only modules report an honest 0 (Go counts significant lines) |
 
@@ -105,7 +105,7 @@ vibe-check analyze ./my-python-project
 | `name-resolved-edges` | Python imports are resolved by dotted name to directories; name-based resolution can misattribute when package names collide. |
 | `directory-as-module` | Modules are directories; coupling between files in the same directory is intra-module and invisible. |
 | `error-budget` | Measured inaccuracy of the coupling data against the pinned ripwire release: Python directory Ca/Ce 100% exact on pip and django, file edges at least 0.11% lost / 0.01% spurious; TypeScript 0.16% of import targets unresolved (rollup). Method and figures: `openspec/changes/bump-ripwire-pin/measurement/`. |
-| `cycle-approximation` | Cycles are a directory-grain SCC derivation, corroborated against ripwire's own file-level listing (up to 1000 SCCs × 12 members). The derivation name-resolves import text, so a cycle closed only through a `from pkg import subpkg` import is not detected even though Ca/Ce count that edge. |
+| `cycle-approximation` | Cycles are a directory-grain SCC derivation, corroborated against ripwire's own file-level listing (up to 1000 SCCs × 12 members). For Python, the edges combine name-resolved import text with the imported names of `from pkg import name` statements (from vibe-check's own light parse), so cycles closed through wide-form subpackage imports are detected. |
 | `coupling-floor` | ripwire resolves almost no imports for some languages (Go, Java, Kotlin, C#, PHP, Swift, Dart, GDScript, Clojure). A module holding such a file reports Ca/Ce as lower bounds; the warning names the modules and languages. |
 | `denylist-pruned` | ripwire skips directories named `build`, `dist`, `out`, `target`, `vendor`, `third_party`, `captures` (except a `build` directory whose files git tracks, which it indexes); the warning lists the source-bearing ones it pruned. |
 | `ts-abstractness-bias` | TypeScript abstractness undercounts `abstract class` declarations and type aliases inflate the type denominator. |

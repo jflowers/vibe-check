@@ -35,11 +35,29 @@ func mapRecording(t *testing.T, corpus, language string) moduleMapping {
 	if err != nil {
 		t.Fatalf("parseDepsOutput: %v", err)
 	}
-	mapping, err := mapToModules(language, table, deps)
+	mapping, err := mapToModules(language, table, deps, fixtureMemberImports(t, language))
 	if err != nil {
 		t.Fatalf("mapToModules: %v", err)
 	}
 	return mapping
+}
+
+// fixtureMemberImports returns the member-import light parse of the
+// committed Python fixture tree (the tree every Python recording was
+// captured from or replays over), or nil for other languages.
+func fixtureMemberImports(t *testing.T, language string) map[string][]memberImport {
+	t.Helper()
+	if language != languagePython {
+		return nil
+	}
+	members, warnings, err := pythonMemberImportScan(filepath.Join("testdata", "python", "src"))
+	if err != nil {
+		t.Fatalf("pythonMemberImportScan: %v", err)
+	}
+	if len(warnings) != 0 {
+		t.Fatalf("pythonMemberImportScan warnings: %v", warnings)
+	}
+	return members
 }
 
 func warningCodes(ws []metrics.Warning) []string {
@@ -90,23 +108,25 @@ func TestMapToModules_RecordedPython(t *testing.T) {
 	mapping := mapRecordedFixture(t, "python")
 
 	// Ca/Ce come from the --arch rows (ripwire's resolved edges); the
-	// Internal*/External* counters come from name-resolving --deps <inc t=>
-	// text. They disagree for the wide-form import: ripwire resolves
-	// `from fixturepy import cycle_b` to both fixturepy/__init__.py and
-	// cycle_b/__init__.py (wide Ce=2, cycle_b Ca=2), but --deps records the
-	// target as written ("fixturepy"), so the member edge to cycle_b is not
-	// in the adapter's edge set (wide InternalOut=1, cycle_b InternalIn=1).
-	// Pinned deliberately: see openspec/changes/bump-ripwire-pin design,
-	// Risks ("wide-form member edges are invisible to cycle derivation").
+	// Internal*/External* counters come from the adapter's own edge set:
+	// name-resolved --deps <inc t=> targets plus the member edges of
+	// wide-form imports. --deps records `from fixturepy import cycle_b` as
+	// "fixturepy" alone; the member-import light parse recovers cycle_b
+	// (anchored to that include), so wide's InternalOut equals its Ce=2 and
+	// cycle_b's InternalIn equals its Ca=2 (openspec/changes/
+	// wide-form-cycle-edges). On this fixture every module's internal
+	// counters now agree with its arch row.
 	want := map[string]mappedModule{
-		"fixturepy":                  {Identity: "fixturepy", Name: "fixturepy", Ca: 1, Ce: 0, Types: 5, Abstract: 0, InternalIn: 1, ExternalOut: 1},
+		"fixturepy":                  {Identity: "fixturepy", Name: "fixturepy", Ca: 2, Ce: 0, Types: 5, Abstract: 0, InternalIn: 2, ExternalOut: 1},
 		"fixturepy.alias":            {Identity: "fixturepy.alias", Name: "alias", Ca: 0, Ce: 1, InternalOut: 1},
 		"fixturepy.collide":          {Identity: "fixturepy.collide", Name: "collide", Ca: 0, Ce: 0, ExternalOut: 1},
 		"fixturepy.cycle_a":          {Identity: "fixturepy.cycle_a", Name: "cycle_a", Ca: 2, Ce: 1, InternalOut: 1, InternalIn: 2},
-		"fixturepy.cycle_b":          {Identity: "fixturepy.cycle_b", Name: "cycle_b", Ca: 2, Ce: 1, InternalOut: 1, InternalIn: 1},
+		"fixturepy.cycle_b":          {Identity: "fixturepy.cycle_b", Name: "cycle_b", Ca: 2, Ce: 1, InternalOut: 1, InternalIn: 2},
 		"fixturepy.operations":       {Identity: "fixturepy.operations", Name: "operations", Ca: 0, Ce: 0},
 		"fixturepy.operations.build": {Identity: "fixturepy.operations.build", Name: "build", Ca: 0, Ce: 0},
-		"fixturepy.wide":             {Identity: "fixturepy.wide", Name: "wide", Ca: 0, Ce: 2, InternalOut: 1},
+		"fixturepy.ring_a":           {Identity: "fixturepy.ring_a", Name: "ring_a", Ca: 1, Ce: 2, InternalOut: 2, InternalIn: 1},
+		"fixturepy.ring_b":           {Identity: "fixturepy.ring_b", Name: "ring_b", Ca: 1, Ce: 1, InternalOut: 1, InternalIn: 1},
+		"fixturepy.wide":             {Identity: "fixturepy.wide", Name: "wide", Ca: 0, Ce: 2, InternalOut: 2},
 	}
 	if len(mapping.Modules) != len(want) {
 		t.Fatalf("modules: got %d, want %d", len(mapping.Modules), len(want))
@@ -134,7 +154,11 @@ func TestMapToModules_RecordedPython(t *testing.T) {
 		{From: "fixturepy.alias", To: "fixturepy.cycle_a"},
 		{From: "fixturepy.cycle_a", To: "fixturepy.cycle_b"},
 		{From: "fixturepy.cycle_b", To: "fixturepy.cycle_a"},
+		{From: "fixturepy.ring_a", To: "fixturepy"},
+		{From: "fixturepy.ring_a", To: "fixturepy.ring_b"},
+		{From: "fixturepy.ring_b", To: "fixturepy.ring_a"},
 		{From: "fixturepy.wide", To: "fixturepy"},
+		{From: "fixturepy.wide", To: "fixturepy.cycle_b"},
 	}
 	if !reflect.DeepEqual(mapping.Edges, wantEdges) {
 		t.Errorf("edges: got %v, want %v", mapping.Edges, wantEdges)
@@ -242,7 +266,7 @@ func TestMapToModules_ArchPathForms(t *testing.T) {
 					}
 					rows = append(rows, archModuleRow{Path: p})
 				}
-				mapping, err := mapToModules(tc.language, syntheticArch(rows...), depsGraph{})
+				mapping, err := mapToModules(tc.language, syntheticArch(rows...), depsGraph{}, nil)
 				if err != nil {
 					t.Fatalf("mapToModules: %v", err)
 				}
@@ -328,7 +352,7 @@ func TestMapToModules_AmbiguityRate(t *testing.T) {
 			{Path: "src/index.ts", IncTargets: []string{"./orphan-dir"}},
 		},
 	}
-	mapping, err := mapToModules(languageTypeScript, table, deps)
+	mapping, err := mapToModules(languageTypeScript, table, deps, nil)
 	if err != nil {
 		t.Fatalf("mapToModules: %v", err)
 	}
@@ -373,7 +397,7 @@ func TestMapToModules_WarningProse(t *testing.T) {
 	t.Run("ambiguity rate", func(t *testing.T) {
 		table := syntheticArch(archModuleRow{Path: "./src", Ca: 0, Ce: 1})
 		deps := depsGraph{Rows: []depsFile{{Path: "src/index.ts", IncTargets: []string{"./orphan-dir"}}}}
-		mapping, err := mapToModules(languageTypeScript, table, deps)
+		mapping, err := mapToModules(languageTypeScript, table, deps, nil)
 		if err != nil {
 			t.Fatalf("mapToModules: %v", err)
 		}
@@ -397,7 +421,7 @@ func TestMapToModules_PythonAllExternalNoNameResolution(t *testing.T) {
 			{Path: "pkg/mod.py", IncTargets: []string{"os", "sys"}},
 		},
 	}
-	mapping, err := mapToModules(languagePython, table, deps)
+	mapping, err := mapToModules(languagePython, table, deps, nil)
 	if err != nil {
 		t.Fatalf("mapToModules: %v", err)
 	}
@@ -413,7 +437,7 @@ func TestMapToModules_Errors(t *testing.T) {
 	t.Parallel()
 
 	t.Run("empty arch table", func(t *testing.T) {
-		if _, err := mapToModules(languagePython, archTable{}, depsGraph{}); err == nil {
+		if _, err := mapToModules(languagePython, archTable{}, depsGraph{}, nil); err == nil {
 			t.Fatal("got no error, want error for empty arch table")
 		}
 	})
@@ -423,7 +447,7 @@ func TestMapToModules_Errors(t *testing.T) {
 			archModuleRow{Path: "./a/b"},
 			archModuleRow{Path: "./a.b"},
 		)
-		if _, err := mapToModules(languagePython, table, depsGraph{}); err == nil {
+		if _, err := mapToModules(languagePython, table, depsGraph{}, nil); err == nil {
 			t.Fatal("got no error, want error for duplicate identity a.b")
 		}
 	})
@@ -431,7 +455,7 @@ func TestMapToModules_Errors(t *testing.T) {
 	t.Run("deps file outside modules", func(t *testing.T) {
 		table := syntheticArch(archModuleRow{Path: "./pkg"})
 		deps := depsGraph{Rows: []depsFile{{Path: "elsewhere/mod.py"}}}
-		if _, err := mapToModules(languagePython, table, deps); err == nil {
+		if _, err := mapToModules(languagePython, table, deps, nil); err == nil {
 			t.Fatal("got no error, want error for file outside module universe")
 		}
 	})
@@ -451,5 +475,152 @@ func TestModuleName(t *testing.T) {
 		if got := moduleName(tc.identity); got != tc.want {
 			t.Errorf("moduleName(%q): got %q, want %q", tc.identity, got, tc.want)
 		}
+	}
+}
+
+// memberEdgeArch is the module universe shared by the member-edge tests:
+// a package root with two subpackages.
+func memberEdgeArch() archTable {
+	return syntheticArch(
+		archModuleRow{Path: "pkg", Ca: 1, Ce: 0},
+		archModuleRow{Path: "pkg/a", Ca: 0, Ce: 2},
+		archModuleRow{Path: "pkg/b", Ca: 1, Ce: 0},
+	)
+}
+
+func TestMapToModules_MemberEdgeAnchored(t *testing.T) {
+	t.Parallel()
+
+	deps := depsGraph{Rows: []depsFile{{Path: "pkg/a/mod.py", IncTargets: []string{"pkg"}}}}
+	members := map[string][]memberImport{"pkg/a/mod.py": {{Base: "pkg", Name: "b"}}}
+	mapping, err := mapToModules(languagePython, memberEdgeArch(), deps, members)
+	if err != nil {
+		t.Fatalf("mapToModules: %v", err)
+	}
+	wantEdges := []moduleEdge{{From: "pkg.a", To: "pkg"}, {From: "pkg.a", To: "pkg.b"}}
+	if !reflect.DeepEqual(mapping.Edges, wantEdges) {
+		t.Errorf("edges: got %v, want %v", mapping.Edges, wantEdges)
+	}
+	if a := moduleByIdentity(t, mapping, "pkg.a"); a.InternalOut != 2 {
+		t.Errorf("pkg.a internal out: got %d, want 2", a.InternalOut)
+	}
+	if b := moduleByIdentity(t, mapping, "pkg.b"); b.InternalIn != 1 {
+		t.Errorf("pkg.b internal in: got %d, want 1", b.InternalIn)
+	}
+}
+
+func TestMapToModules_MemberEdgeUnanchored(t *testing.T) {
+	t.Parallel()
+
+	// The light parse found `from pkg import b`, but ripwire recorded no
+	// include target "pkg" for the file (e.g. the text sat somewhere the
+	// parse could not exclude): no member edge.
+	deps := depsGraph{Rows: []depsFile{{Path: "pkg/a/mod.py", IncTargets: []string{"os"}}}}
+	members := map[string][]memberImport{"pkg/a/mod.py": {{Base: "pkg", Name: "b"}}}
+	mapping, err := mapToModules(languagePython, memberEdgeArch(), deps, members)
+	if err != nil {
+		t.Fatalf("mapToModules: %v", err)
+	}
+	if len(mapping.Edges) != 0 {
+		t.Errorf("edges: got %v, want none", mapping.Edges)
+	}
+}
+
+func TestMapToModules_MemberEdgeFileNotInDeps(t *testing.T) {
+	t.Parallel()
+
+	// A scanned file absent from the --deps window (capped or pruned)
+	// contributes nothing.
+	deps := depsGraph{Rows: []depsFile{{Path: "pkg/a/other.py", IncTargets: []string{"pkg"}}}}
+	members := map[string][]memberImport{"pkg/a/mod.py": {{Base: "pkg", Name: "b"}}}
+	mapping, err := mapToModules(languagePython, memberEdgeArch(), deps, members)
+	if err != nil {
+		t.Fatalf("mapToModules: %v", err)
+	}
+	wantEdges := []moduleEdge{{From: "pkg.a", To: "pkg"}}
+	if !reflect.DeepEqual(mapping.Edges, wantEdges) {
+		t.Errorf("edges: got %v, want %v", mapping.Edges, wantEdges)
+	}
+}
+
+func TestMapToModules_MemberEdgeSymbolOrFile(t *testing.T) {
+	t.Parallel()
+
+	// `from pkg import helper` (a symbol or pkg/helper.py) and
+	// `from pkg.b import thing` resolve to no module directory: only the
+	// name-resolved base edges remain.
+	deps := depsGraph{Rows: []depsFile{{Path: "pkg/a/mod.py", IncTargets: []string{"pkg", "pkg.b"}}}}
+	members := map[string][]memberImport{"pkg/a/mod.py": {
+		{Base: "pkg", Name: "helper"},
+		{Base: "pkg.b", Name: "thing"},
+	}}
+	mapping, err := mapToModules(languagePython, memberEdgeArch(), deps, members)
+	if err != nil {
+		t.Fatalf("mapToModules: %v", err)
+	}
+	wantEdges := []moduleEdge{{From: "pkg.a", To: "pkg"}, {From: "pkg.a", To: "pkg.b"}}
+	if !reflect.DeepEqual(mapping.Edges, wantEdges) {
+		t.Errorf("edges: got %v, want %v", mapping.Edges, wantEdges)
+	}
+}
+
+func TestMapToModules_MemberEdgeDedup(t *testing.T) {
+	t.Parallel()
+
+	// The member edge pkg.a → pkg.b duplicates a name-resolved edge from
+	// a sibling file: it is counted once.
+	deps := depsGraph{Rows: []depsFile{
+		{Path: "pkg/a/first.py", IncTargets: []string{"pkg.b.api"}},
+		{Path: "pkg/a/second.py", IncTargets: []string{"pkg"}},
+	}}
+	members := map[string][]memberImport{"pkg/a/second.py": {{Base: "pkg", Name: "b"}}}
+	mapping, err := mapToModules(languagePython, memberEdgeArch(), deps, members)
+	if err != nil {
+		t.Fatalf("mapToModules: %v", err)
+	}
+	wantEdges := []moduleEdge{{From: "pkg.a", To: "pkg"}, {From: "pkg.a", To: "pkg.b"}}
+	if !reflect.DeepEqual(mapping.Edges, wantEdges) {
+		t.Errorf("edges: got %v, want %v", mapping.Edges, wantEdges)
+	}
+	if a := moduleByIdentity(t, mapping, "pkg.a"); a.InternalOut != 2 {
+		t.Errorf("pkg.a internal out: got %d, want 2", a.InternalOut)
+	}
+	if b := moduleByIdentity(t, mapping, "pkg.b"); b.InternalIn != 1 {
+		t.Errorf("pkg.b internal in: got %d, want 1", b.InternalIn)
+	}
+}
+
+func TestMapToModules_MemberEdgeCaCeUnchanged(t *testing.T) {
+	t.Parallel()
+
+	// Member edges never touch the authoritative arch values, even when
+	// the arch row disagrees with the edge set.
+	table := syntheticArch(
+		archModuleRow{Path: "pkg", Ca: 7, Ce: 3},
+		archModuleRow{Path: "pkg/a", Ca: 5, Ce: 0},
+		archModuleRow{Path: "pkg/b", Ca: 0, Ce: 9},
+	)
+	deps := depsGraph{Rows: []depsFile{{Path: "pkg/a/mod.py", IncTargets: []string{"pkg"}}}}
+	members := map[string][]memberImport{"pkg/a/mod.py": {{Base: "pkg", Name: "b"}}}
+	mapping, err := mapToModules(languagePython, table, deps, members)
+	if err != nil {
+		t.Fatalf("mapToModules: %v", err)
+	}
+	want := map[string][2]int{"pkg": {7, 3}, "pkg.a": {5, 0}, "pkg.b": {0, 9}}
+	for identity, caCe := range want {
+		m := moduleByIdentity(t, mapping, identity)
+		if m.Ca != caCe[0] || m.Ce != caCe[1] {
+			t.Errorf("%s ca/ce: got %d/%d, want %d/%d", identity, m.Ca, m.Ce, caCe[0], caCe[1])
+		}
+	}
+}
+
+func TestMapToModules_MemberEdgeDeterministic(t *testing.T) {
+	t.Parallel()
+
+	first := mapRecordedFixture(t, "python")
+	second := mapRecordedFixture(t, "python")
+	if !reflect.DeepEqual(first, second) {
+		t.Errorf("mapping differs across runs:\nfirst  %+v\nsecond %+v", first, second)
 	}
 }

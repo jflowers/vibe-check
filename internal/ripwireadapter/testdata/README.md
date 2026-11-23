@@ -8,7 +8,10 @@ fixtures themselves are documented in [`FIXTURES.md`](FIXTURES.md).
 
 History: first captured from ripwire 0.6.9 @ `bedc0cd` by
 `openspec/changes/ripwire-adapter` (tasks 1.2–1.4); re-captured for the pin
-move by `openspec/changes/bump-ripwire-pin` (tasks 1.1–1.4, 7.1–7.3).
+move by `openspec/changes/bump-ripwire-pin` (tasks 1.1–1.4, 7.1–7.3); the
+Python recordings (`python`, `python-mixed`, derived `python-zero-edge`)
+re-captured for the `ring_a`/`ring_b` fixture by
+`openspec/changes/wide-form-cycle-edges` (task 2.2).
 
 ## Layout
 
@@ -58,6 +61,13 @@ only because 0.7.0 indexes a `build/` directory whose files git tracks (see
 
 The binary was extracted and run **outside the repository** and must never be
 committed or copied into the repo.
+
+`wide-form-cycle-edges` re-captured `python/` and `python-mixed/` (and
+re-derived `python-zero-edge/`) with this same 0.7.0 binary (binary sha256
+as above) after adding the `ring_a`/`ring_b` fixture packages; `typescript/`
+and every `version.txt` are unchanged. Against the pre-ring recordings,
+`python/arch.txt` differs only in the two new `<m>` rows, `fixturepy`
+`ca="2"`, the module counts, and `propagation_cost`.
 
 ## Capture commands (exact, as run)
 
@@ -117,7 +127,7 @@ test (an edgeless crawl over a non-empty corpus).
 
 ## Flag choices and why
 
-- **`--limit=1000` (`--deps` only)** — the fixtures contain at most 16
+- **`--limit=1000` (`--deps` only)** — the fixtures contain at most 19
   in-corpus files, so 1000 can never truncate; the recorded roots carry
   `capped="0" has_more="0"` plus the full paging attributes
   (`total= offset= limit=`), proving nothing was cut. In the pinned release
@@ -157,15 +167,15 @@ Results — every recording byte-identical across the two runs:
 
 | Recording | Bytes |
 |-----------|-------|
-| `python/arch.txt` | 2709 |
-| `python/deps.xml` | 2214 |
-| `python/cc.json` | 3403 |
+| `python/arch.txt` | 2944 |
+| `python/deps.xml` | 2550 |
+| `python/cc.json` | 3913 |
 | `typescript/arch.txt` | 2172 |
 | `typescript/deps.xml` | 2123 |
 | `typescript/cc.json` | 1672 |
-| `python-mixed/arch.txt` | 4077 |
-| `python-mixed/deps.xml` | 3547 |
-| `python-mixed/cc.json` | 3504 |
+| `python-mixed/arch.txt` | 4311 |
+| `python-mixed/deps.xml` | 3883 |
+| `python-mixed/cc.json` | 4014 |
 | `*/version.txt` | 111 |
 
 ## Reading the recordings (fixture-specific facts)
@@ -176,7 +186,7 @@ Results — every recording byte-identical across the two runs:
 - **Python `operations/build` depends on git.** ripwire 0.7.0 indexes a
   `build/` directory whose files git tracks and prunes it otherwise. The
   `python/` capture runs inside this repository's checkout, so
-  `fixturepy/operations/build` is an isolated eighth module (`ca="0"
+  `fixturepy/operations/build` is an isolated module (`ca="0"
   ce="0"`), `cc.json` lists its two files, and there is no
   `<pruned_packages>`; the adapter's pre-check drops a denylist-named
   directory ripwire indexed, so the graph carries no `denylist-pruned`
@@ -189,12 +199,17 @@ Results — every recording byte-identical across the two runs:
 - **`--deps` records imports as written, not as resolved.** `wide/
   consumer.py` lists a single `<inc t="fixturepy"/>`; the resolved member
   edge to `cycle_b/__init__.py` shows only in that file's `afferent=` and
-  in `cc.json` `fan_out=2`. The adapter's edge set (and so its cycle
-  derivation) name-resolves `<inc t=>` text and therefore does not see it
-  — see `openspec/changes/bump-ripwire-pin` design, Risks.
+  in `cc.json` `fan_out=2`. Name-resolving `<inc t=>` text alone cannot
+  see it; the adapter recovers it with its own member-import light parse,
+  anchored to that `<inc t="fixturepy"/>` (`openspec/changes/
+  wide-form-cycle-edges`). `ring_a/__init__.py` (`<inc t="fixturepy"/>`)
+  is the same shape: its member edge to `ring_b` is the only edge closing
+  the `ring_a`/`ring_b` cycle.
 - **Python `deps.xml` has no `<cycles>` element.** The fixture's import
   cycle resolves file-level as `cycle_a/__init__.py → cycle_b/api.py` and
-  `cycle_b/__init__.py → cycle_a/api.py` (each edge one-way at file grain).
+  `cycle_b/__init__.py → cycle_a/api.py` (each edge one-way at file grain);
+  the ring pair likewise (`ring_a/__init__.py → ring_b/__init__.py →
+  ring_a/api.py`).
   The two-directory cycle exists at directory grain and is the adapter's
   own SCC derivation. The TypeScript `deps.xml` carries a `<cycles>`
   element with the size-2 cycle and `<health shape="tangled"
