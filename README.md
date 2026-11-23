@@ -94,7 +94,7 @@ vibe-check analyze ./my-python-project
 | Abstractness | Python: vibe-check light parse (ABC / ABCMeta / Protocol classes); TypeScript: ripwire interface share |
 | Distance, Zone | derived (`metrics.Compute*`) |
 | LCOM4 | vibe-check light parse (methods sharing `self.X` / `this.X` fields) |
-| Cycles | vibe-check's own SCC derivation over name-resolved ripwire `--deps` import targets, plus (Python) `from pkg import subpkg` member edges from vibe-check's own light parse |
+| Cycles | vibe-check's own SCC derivation over name-resolved ripwire `--deps` import targets, plus (Python) `from pkg import subpkg` member edges from vibe-check's own light parse; Python relative targets resolve against the importing file's package |
 | Duplication | unsupported — zero-valued, with an `unsupported-metric` warning |
 | TotalLines | ripwire `--export=cc.json` census — physical lines of indexed source files; config-only modules report an honest 0 (Go counts significant lines) |
 
