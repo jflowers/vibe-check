@@ -28,13 +28,13 @@
 - [x] 4.1 [P] README: drop the wide-form sentence from the `cycle-approximation` row. Verify: `grep -n "from pkg import subpkg" README.md` returns nothing.
 - [x] 4.2 [P] CHANGELOG `Unreleased`: a Fixed entry saying Python cycle derivation now includes wide-form member edges, and that a `diff` across the upgrade can report a previously-missed cycle as new. Verify: the entry is present.
 - [x] 4.3 [P] AGENTS.md project structure: add `memberimports.go` under `internal/ripwireadapter/`. Update `testdata/README.md` / `golden-notes.md` cross-references to the parent change's wide-form Risk. Verify: `grep -n memberimports AGENTS.md`.
-- [ ] 4.4 File the documentation issue for the user-facing change (AGENTS.md documentation gate) and record its number here.
+- [x] 4.4 File the documentation issue for the user-facing change (AGENTS.md documentation gate) and record its number here. Filed: #97.
 
 ## 5. Gates
 
 - [x] 5.1 CI parity: run every command in `.github/workflows/ci.yml` locally (build, `go test -race -count=1 -coverprofile=coverage.out ./...`, coverage ratchet, vet, golangci-lint, plus any others listed there) with ripwire removed from PATH. Verify: all pass. Coverage floors are not lowered, and the `ripwireadapter` floor is raised with `--update` only if it rises.
 - [x] 5.2 Run `/uf.review-council`. Resolve every REQUEST CHANGES. Verify: all reviewers APPROVE.
-- [ ] 5.3 Push `opsx/wide-form-cycle-edges` and open a draft PR stacked on #96, stating that it cannot merge before #96. Verify: PR open.
+- [x] 5.3 Push `opsx/wide-form-cycle-edges` and open a draft PR stacked on #96, stating that it cannot merge before #96. Verify: PR open.
 - [ ] 5.4 After #96 merges, rebase onto `main`. If #96's Phase B re-captured with a different binary, repeat 2.2–2.3 and 5.1. Mark the PR ready.
 
 ## 6. Follow-up (not this change)
