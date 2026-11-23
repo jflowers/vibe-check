@@ -70,8 +70,24 @@ func TestScanPythonMemberImports_Forms(t *testing.T) {
 			want:   nil,
 		},
 		{
-			name:   "relative bases ignored",
-			source: "from . import a\nfrom .. import b\nfrom ..pkg import c\nfrom .x import d\n",
+			name:   "relative bases kept verbatim",
+			source: "from . import a\nfrom .. import (b, c as cee)\nfrom ..pkg import c\nfrom .sub import d\n",
+			want: []memberImport{
+				{Base: ".", Name: "a"},
+				{Base: "..", Name: "b"},
+				{Base: "..", Name: "c"},
+				{Base: "..pkg", Name: "c"},
+				{Base: ".sub", Name: "d"},
+			},
+		},
+		{
+			name:   "malformed relative bases ignored",
+			source: "from .a..b import x\nfrom ..x. import y\n",
+			want:   nil,
+		},
+		{
+			name:   "relative base without space before import not matched",
+			source: "from .import x\n",
 			want:   nil,
 		},
 		{

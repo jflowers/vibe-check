@@ -40,7 +40,9 @@ type mappedModule struct {
 	InternalOut, InternalIn int
 	// ExternalOut counts include targets that resolve outside the module
 	// universe (external dependencies): counted in Ce only, they add no
-	// module and no afferent coupling anywhere.
+	// module and no afferent coupling anywhere. A Python relative target
+	// (leading dot) is never external: it resolves to an edge or is
+	// unresolved (openspec/changes/relative-import-edges design D1).
 	ExternalOut int
 	// CouplingFloor reports that ripwire marked the module zone="unknown":
 	// Ca and Ce are lower bounds, not exact counts (openspec/changes/
@@ -66,8 +68,9 @@ type moduleMapping struct {
 	// name-resolved include edges plus Python member edges.
 	Edges []moduleEdge
 	// Warnings carries directory-as-module (always), name-resolved-edges
-	// (Python dotted-target resolution), ambiguity-rate (targets that
-	// land inside the crawl but match no module), and coupling-floor
+	// (Python dotted-target resolution), ambiguity-rate (in-crawl targets
+	// matching no module, or Python relative imports climbing above the
+	// crawl root), and coupling-floor
 	// (modules whose Ca/Ce ripwire reports only as floors).
 	Warnings []metrics.Warning
 }
@@ -86,6 +89,10 @@ type moduleMapping struct {
 // edge F-module → B/n-module. --deps records only B, so without this
 // pass a cycle closed through a wide-form subpackage import is invisible
 // to cycle derivation (openspec/changes/wide-form-cycle-edges design D3).
+// A relative base B (`from .. import n`) is resolved against F's directory
+// by relativeBaseDir, and the resulting directory joined with n must be
+// exactly a module directory; a base climbing above the crawl root adds
+// nothing (openspec/changes/relative-import-edges design D3).
 // Member edges feed Edges and the Internal* counters only; Ca/Ce stay the
 // --arch values.
 //
@@ -195,7 +202,10 @@ func mapToModules(language string, table archTable, deps depsGraph, members map[
 			if !anchors[member.Base] {
 				continue
 			}
-			dir := identityToDir(member.Base + "." + member.Name)
+			dir, ok := memberDir(sourceDir, member)
+			if !ok {
+				continue
+			}
 			if target, ok := moduleByDir[dir]; ok {
 				addEdge(sourceModule, target.Identity)
 			}
@@ -222,8 +232,8 @@ func mapToModules(language string, table archTable, deps depsGraph, members map[
 	if ambiguous {
 		mapping.Warnings = append(mapping.Warnings, metrics.Warning{
 			Code: warningAmbiguityRate,
-			Message: "some include targets land inside the crawl but match no module directory; " +
-				"their edges were dropped from the module graph",
+			Message: "some include targets (in-crawl names, or relative imports climbing above " +
+				"the crawl root) match no module directory; their edges were dropped from the module graph",
 		})
 	}
 	return mapping, nil
@@ -243,8 +253,14 @@ type targetResolution struct {
 // to an internal module edge, an external dependency, or an unresolved
 // in-crawl reference. Python targets are dotted module ids resolved by
 // longest directory prefix (name-based); TypeScript targets are relative
-// paths joined against the source directory (path-based).
+// paths joined against the source directory (path-based). A Python
+// relative target (leading dot) is resolved against the source directory
+// by resolveRelativePython instead, and is never external or name-based.
+// The returned bool reports a name-based (global dotted-name) resolution.
 func resolveTarget(language, sourceDir, target string, moduleByDir map[string]*mappedModule) (targetResolution, bool, error) {
+	if language == languagePython && strings.HasPrefix(target, ".") {
+		return resolveRelativePython(sourceDir, target, moduleByDir), false, nil
+	}
 	if language == languagePython {
 		// Dotted module id: try the longest prefix of components.
 		components := strings.Split(target, ".")
@@ -271,6 +287,108 @@ func resolveTarget(language, sourceDir, target string, moduleByDir map[string]*m
 	}
 	// Inside the crawl tree but not a module directory.
 	return targetResolution{unresolved: true}, false, nil
+}
+
+// resolveRelativePython resolves a Python relative include target (one or
+// more leading dots, as ripwire's --deps records it) from the importing
+// file's directory. The target resolves to the longest prefix of
+// relativeBaseDir's candidate directory that is a module directory, never
+// shorter than the anchor package, so an ancestor the statement does not
+// name is never guessed. A target that climbs above the crawl root, is
+// malformed, or has no module prefix at or below its anchor is
+// unresolved. A relative import cannot reach a stdlib or third-party
+// module, so it is never external (openspec/changes/relative-import-edges
+// design D1).
+func resolveRelativePython(sourceDir, target string, moduleByDir map[string]*mappedModule) targetResolution {
+	anchor, dir, ok := relativeBaseDir(sourceDir, target)
+	if !ok {
+		return targetResolution{unresolved: true}
+	}
+	for {
+		if module := moduleByDir[dir]; module != nil {
+			return targetResolution{identity: module.Identity}
+		}
+		if dir == anchor {
+			return targetResolution{unresolved: true}
+		}
+		dir = parentDir(dir)
+	}
+}
+
+// relativeBaseDir resolves a Python relative base (k leading dots, then an
+// optional dotted remainder R) from the importing file's root-relative,
+// slash-form directory sourceDir ("." for the crawl root). Python anchors a
+// relative import to __package__, which is the file's directory for both
+// __init__.py and module files, so the anchor is sourceDir climbed k-1
+// directories; dir is the anchor with R's components appended. ok is false
+// when the base climbs above the crawl root or is malformed (no leading
+// dot, or an empty component in R).
+//
+// Examples from sourceDir "pk/b": "." → "pk/b"; ".." → "pk"; ".api" →
+// "pk/b/api"; "..a.x" → anchor "pk", dir "pk/a/x"; "..." → "."; "...." →
+// not ok.
+func relativeBaseDir(sourceDir, base string) (anchor, dir string, ok bool) {
+	rest := strings.TrimLeft(base, ".")
+	dots := len(base) - len(rest)
+	if dots == 0 {
+		return "", "", false
+	}
+	var components []string
+	if sourceDir != "." && sourceDir != "" {
+		components = strings.Split(sourceDir, "/")
+	}
+	climb := dots - 1
+	if climb > len(components) {
+		return "", "", false
+	}
+	components = components[:len(components)-climb]
+	anchor = joinDir(components)
+	if rest == "" {
+		return anchor, anchor, true
+	}
+	tail := strings.Split(rest, ".")
+	for _, part := range tail {
+		if part == "" {
+			return "", "", false
+		}
+	}
+	return anchor, joinDir(append(append([]string(nil), components...), tail...)), true
+}
+
+// memberDir returns the slash-form directory a member import names:
+// Base/Name for an absolute base, or relativeBaseDir's directory joined
+// with Name for a relative base. ok is false when a relative base cannot
+// be resolved.
+func memberDir(sourceDir string, member memberImport) (string, bool) {
+	if !strings.HasPrefix(member.Base, ".") {
+		return identityToDir(member.Base + "." + member.Name), true
+	}
+	_, base, ok := relativeBaseDir(sourceDir, member.Base)
+	if !ok {
+		return "", false
+	}
+	if base == "." {
+		return member.Name, true
+	}
+	return base + "/" + member.Name, true
+}
+
+// joinDir joins slash-form path components, mapping none to ".".
+func joinDir(components []string) string {
+	if len(components) == 0 {
+		return "."
+	}
+	return strings.Join(components, "/")
+}
+
+// parentDir returns the parent of a slash-form directory: "." for a
+// top-level directory.
+func parentDir(dir string) string {
+	i := strings.LastIndex(dir, "/")
+	if i < 0 {
+		return "."
+	}
+	return dir[:i]
 }
 
 // moduleIdentity converts a ripwire --arch row path to a D4 module
