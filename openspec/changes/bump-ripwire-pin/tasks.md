@@ -40,7 +40,7 @@
 - [x] 6.3 [P] Add the version-test cases from the spec: previous pin `0.6.9`/`bedc0cdcf` refused; dev build `0.6.10-dev.65+g1edb6fd6a` refused. Verify: `version_test.go` passes.
 - [x] 6.4 Run the two-run byte-equality determinism tests across all recordings, then CI parity from `.github/workflows/ci.yml` (build, vet, `go test -race -count=1`, coverage ratchet, golangci-lint) in a ripwire-free shell. Verify: every command exits 0; no coverage floor lowered. (Done 2026-11-19: all pass; golangci-lint is clean on changed packages — local v2.15.0 reports two `errcheck` findings in untouched `metrics/external.go` that predate this branch; CI pins v2.12.2.)
 - [x] 6.5 Draft README (ripwire install prerequisite, metric-sources/caveats incl. `coupling-floor`), CHANGELOG `[Unreleased]` (Changed: pin; Added: `coupling-floor`; note that coupling values shift across the upgrade boundary and base snapshots should be re-taken), and AGENTS.md (`version.go` line) with a `<RELEASE>` placeholder for the version. Verify: `grep -n '<RELEASE>'` lists every placeholder for Phase B.
-- [ ] 6.6 Open the PR as **draft** after the review council approves Phase A, file the documentation issue (AGENTS.md documentation gate), and note in the PR body that it is blocked on the upstream release. Verify: PR is draft; docs issue linked.
+- [x] 6.6 Open the PR as **draft** after the review council approves Phase A, file the documentation issue (AGENTS.md documentation gate), and note in the PR body that it is blocked on the upstream release. Verify: PR is draft; docs issue linked.
 
 ## 7. Finalize on the upstream release (Phase B — blocked on upstream)
 
