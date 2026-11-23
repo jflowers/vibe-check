@@ -31,6 +31,9 @@ Properties shared by every fixture file:
 | `python/src/fixturepy/cycle_b/api.py` | Defines `helper_b`, imported by cycle side A. |
 | `python/src/fixturepy/wide/__init__.py` | Package marker for the wide-form import scenario. |
 | `python/src/fixturepy/wide/consumer.py` | `from fixturepy import cycle_b` — wide-form from-import of a **subpackage** (ripwire#478 gap 1): resolves to an edge into `fixturepy/cycle_b`, not only `fixturepy/__init__.py`. |
+| `python/src/fixturepy/ring_a/__init__.py` | Ring side A: `from fixturepy import ring_b` — wide-form import of a subpackage; `--deps` records only `fixturepy`, so the A → B edge comes from the member-import light parse (openspec/changes/wide-form-cycle-edges). |
+| `python/src/fixturepy/ring_a/api.py` | Defines `marker`, imported by ring side B. |
+| `python/src/fixturepy/ring_b/__init__.py` | Ring side B: `from fixturepy.ring_a.api import marker` (name-resolved edge B → A). Its docstring quotes the ring A import, exercising the light parse's string blanking. |
 | `python/src/fixturepy/alias/__init__.py` | Package marker for the aliased-import scenario. |
 | `python/src/fixturepy/alias/consumer.py` | `import fixturepy.cycle_a.api as ca` — aliased import (ripwire#478 gap 2): resolves to an edge into `fixturepy/cycle_a`. |
 | `python/src/fixturepy/collide/__init__.py` | Package marker for the stdlib-name collision scenario. |
@@ -50,6 +53,14 @@ Properties shared by every fixture file:
 
 `cycle_a` and `cycle_b` form a two-directory import cycle. Neither
 package is meant to be imported at runtime.
+
+`ring_a` and `ring_b` form a two-directory cycle that closes **only** through
+a wide-form import: name resolution of `--deps` text alone sees `ring_a →
+fixturepy` and `ring_b → ring_a`, which is acyclic. At file grain the ring is
+acyclic too (`ring_a/__init__.py` → `ring_b/__init__.py` → `ring_a/api.py`), so
+ripwire's own `<cycles>` listing does not report it and detection must come
+from the adapter's derivation. The `ring_` prefix keeps the directories out of
+the `cycle_a`/`cycle_b` layers in `recorded/arch-rules.txt`.
 
 `wide`, `alias`, and `collide` each sit in their own directory module so each
 upstream import fix (openspec/changes/bump-ripwire-pin design D7) shows
