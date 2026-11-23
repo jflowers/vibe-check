@@ -137,7 +137,9 @@ func scanPythonMemberImports(source string) []memberImport {
 					continue // trailing comma
 				}
 				name := fields[0]
-				if len(fields) != 1 && !(len(fields) == 3 && fields[1] == "as") {
+				plain := len(fields) == 1
+				aliased := len(fields) == 3 && fields[1] == "as"
+				if !plain && !aliased {
 					continue
 				}
 				if !pyIdentifierRegex.MatchString(name) {

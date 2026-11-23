@@ -143,6 +143,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   this repository's own gate the reference deployment of the emitted caller.
   Spec: `openspec/changes/init-scaffolds-structural-gate-caller/specs/init-ci-scaffolding/spec.md`
 
+### Fixed
+
+- Python cycle detection no longer misses cycles closed through a wide-form
+  subpackage import (`from pkg import subpkg`). ripwire's `--deps` records
+  such an import as `pkg` alone, so the adapter's directory edge set (the
+  input to its Tarjan SCC) lacked the `subpkg` edge even though Ca/Ce counted
+  it. A new light parse recovers the imported names, and an edge is added
+  only when ripwire recorded the same statement and `pkg/subpkg` is a module.
+  Ca/Ce/I/A/D are unchanged, but `Cycles` can gain a cycle that already
+  existed in the code, so a `diff` whose base predates this change can
+  report it as new. Relative imports (`from . import x`) still produce no
+  edges.
+  Spec: `openspec/changes/wide-form-cycle-edges/specs/wide-form-cycle-edges/spec.md`
+
 ## [0.3.0] - 2026-10-28
 
 ### Added

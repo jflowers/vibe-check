@@ -34,7 +34,9 @@ type mappedModule struct {
 	ArchPath string
 	// Ca, Ce, Types, Abstract are the authoritative arch-row values.
 	Ca, Ce, Types, Abstract int
-	// InternalOut and InternalIn count deduplicated directory-pair edges.
+	// InternalOut and InternalIn count deduplicated directory-pair edges,
+	// name-resolved include edges and Python member edges alike; they can
+	// differ from Ce/Ca in either direction (Ca/Ce stay authoritative).
 	InternalOut, InternalIn int
 	// ExternalOut counts include targets that resolve outside the module
 	// universe (external dependencies): counted in Ce only, they add no
@@ -60,7 +62,8 @@ type moduleEdge struct {
 type moduleMapping struct {
 	// Modules sorted by Identity.
 	Modules []mappedModule
-	// Edges deduplicated per (From, To) pair, sorted lexicographically.
+	// Edges deduplicated per (From, To) pair, sorted lexicographically:
+	// name-resolved include edges plus Python member edges.
 	Edges []moduleEdge
 	// Warnings carries directory-as-module (always), name-resolved-edges
 	// (Python dotted-target resolution), ambiguity-rate (targets that
@@ -75,10 +78,21 @@ type moduleMapping struct {
 // slash-style). The mapping is deterministic: identical inputs yield
 // deep-equal outputs.
 //
+// members carries the Python member-import light parse
+// (pythonMemberImportScan), keyed by root-relative file path; nil for
+// TypeScript or when no scan ran. For a scanned `from B import n` in a
+// --deps file F whose include targets list B verbatim (the anchor: ripwire
+// recorded the same statement), a module directory B/n adds the member
+// edge F-module → B/n-module. --deps records only B, so without this
+// pass a cycle closed through a wide-form subpackage import is invisible
+// to cycle derivation (openspec/changes/wide-form-cycle-edges design D3).
+// Member edges feed Edges and the Internal* counters only; Ca/Ce stay the
+// --arch values.
+//
 // Errors: an empty arch table, two arch rows mapping to the same identity,
 // or a dependency-capable file that sits under no module directory (fail
 // closed — a pinned surface must not produce silently unmapped files).
-func mapToModules(language string, table archTable, deps depsGraph) (moduleMapping, error) {
+func mapToModules(language string, table archTable, deps depsGraph, members map[string][]memberImport) (moduleMapping, error) {
 	if len(table.Rows) == 0 {
 		return moduleMapping{}, fmt.Errorf("map to modules: empty arch table")
 	}
@@ -129,6 +143,17 @@ func mapToModules(language string, table archTable, deps depsGraph) (moduleMappi
 	edgeSet := make(map[moduleEdge]bool)
 	ambiguous := false
 	nameResolved := false
+	addEdge := func(source *mappedModule, targetIdentity string) {
+		edge := moduleEdge{From: source.Identity, To: targetIdentity}
+		if edgeSet[edge] {
+			return
+		}
+		edgeSet[edge] = true
+		source.InternalOut++
+		if target, ok := moduleByDir[identityToDir(targetIdentity)]; ok {
+			target.InternalIn++
+		}
+	}
 
 	for _, file := range deps.Rows {
 		sourceDir, err := fileModuleDir(file.Path)
@@ -152,14 +177,27 @@ func mapToModules(language string, table archTable, deps depsGraph) (moduleMappi
 			case resolved.unresolved:
 				ambiguous = true
 			default:
-				edge := moduleEdge{From: sourceModule.Identity, To: resolved.identity}
-				if !edgeSet[edge] {
-					edgeSet[edge] = true
-					sourceModule.InternalOut++
-					if target, ok := moduleByDir[identityToDir(resolved.identity)]; ok {
-						target.InternalIn++
-					}
-				}
+				addEdge(sourceModule, resolved.identity)
+			}
+		}
+
+		// Member edges of wide-form imports, anchored to an include
+		// target ripwire recorded for this file. Python targets are
+		// name-resolved, so nameResolved is already set by the anchor.
+		if len(members[file.Path]) == 0 {
+			continue
+		}
+		anchors := make(map[string]bool, len(file.IncTargets))
+		for _, target := range file.IncTargets {
+			anchors[target] = true
+		}
+		for _, member := range members[file.Path] {
+			if !anchors[member.Base] {
+				continue
+			}
+			dir := strings.ReplaceAll(member.Base, ".", "/") + "/" + member.Name
+			if target, ok := moduleByDir[dir]; ok {
+				addEdge(sourceModule, target.Identity)
 			}
 		}
 	}

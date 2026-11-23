@@ -34,7 +34,10 @@
 //     reimplemented.
 //   - Circular dependencies: the adapter's own Tarjan strongly-connected-
 //     component analysis over ripwire --deps edges, corroborated against
-//     ripwire's capped cycle listing.
+//     ripwire's capped cycle listing. For Python, the edges also include
+//     the member edges of `from pkg import subpkg` imports, recovered by
+//     the adapter's own light parse (--deps records only `pkg`) and
+//     anchored to the include ripwire recorded.
 //   - Duplication: unsupported. It is never declared as a capability, is
 //     zero-valued in results, and is reported as an "unsupported-metric"
 //     warning.

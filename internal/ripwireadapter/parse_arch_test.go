@@ -26,13 +26,15 @@ func TestParseArchOutput_RecordedPython(t *testing.T) {
 	}
 
 	want := map[string]archModuleRow{
-		"fixturepy":                  {Path: "fixturepy", Ca: 1, Ce: 0, Types: 5, Abstract: 0},
+		"fixturepy":                  {Path: "fixturepy", Ca: 2, Ce: 0, Types: 5, Abstract: 0},
 		"fixturepy/alias":            {Path: "fixturepy/alias", Ca: 0, Ce: 1},
 		"fixturepy/collide":          {Path: "fixturepy/collide", Ca: 0, Ce: 0},
 		"fixturepy/cycle_a":          {Path: "fixturepy/cycle_a", Ca: 2, Ce: 1},
 		"fixturepy/cycle_b":          {Path: "fixturepy/cycle_b", Ca: 2, Ce: 1},
 		"fixturepy/operations":       {Path: "fixturepy/operations", Ca: 0, Ce: 0},
 		"fixturepy/operations/build": {Path: "fixturepy/operations/build", Ca: 0, Ce: 0},
+		"fixturepy/ring_a":           {Path: "fixturepy/ring_a", Ca: 1, Ce: 2},
+		"fixturepy/ring_b":           {Path: "fixturepy/ring_b", Ca: 1, Ce: 1},
 		"fixturepy/wide":             {Path: "fixturepy/wide", Ca: 0, Ce: 2},
 	}
 	assertArchRows(t, table, want)

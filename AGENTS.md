@@ -337,6 +337,7 @@ internal/ripwireadapter/  # ripwire-backed Python/TypeScript adapter (Layer 2)
   cycles.go        # Tarjan SCC cycle derivation + corroboration warning
   lightparse.go    # Python abstractness light parse (ABC/ABCMeta/Protocol)
   lcom.go          # LCOM4 light parse (indent stack / brace depth, union-find)
+  memberimports.go # Python `from B import n` member light parse (wide-form cycle edges)
   budget.go        # Error-budget warnings + any-warning ⇒ partial status rule
   tsabstractness.go  # TS interface-share bias warning
   assembly.go      # Analyze assembly: hybrid merge, warnings, provenance

@@ -5,7 +5,7 @@
     {
       "path": "fixturepy",
       "name": "fixturepy",
-      "ca": 1,
+      "ca": 2,
       "ce": 0,
       "exportedTypes": 4,
       "abstractTypes": 1,
@@ -108,6 +108,36 @@
       "totalLines": 15
     },
     {
+      "path": "fixturepy.ring_a",
+      "name": "ring_a",
+      "ca": 1,
+      "ce": 2,
+      "exportedTypes": 0,
+      "abstractTypes": 0,
+      "instability": 0.6666666666666666,
+      "abstractness": 0,
+      "distance": 0.33333333333333337,
+      "lcom": 0,
+      "zone": "normal",
+      "duplications": [],
+      "totalLines": 18
+    },
+    {
+      "path": "fixturepy.ring_b",
+      "name": "ring_b",
+      "ca": 1,
+      "ce": 1,
+      "exportedTypes": 0,
+      "abstractTypes": 0,
+      "instability": 0.5,
+      "abstractness": 0,
+      "distance": 0.5,
+      "lcom": 0,
+      "zone": "normal",
+      "duplications": [],
+      "totalLines": 10
+    },
+    {
       "path": "fixturepy.wide",
       "name": "wide",
       "ca": 0,
@@ -127,6 +157,10 @@
     [
       "fixturepy.cycle_a",
       "fixturepy.cycle_b"
+    ],
+    [
+      "fixturepy.ring_a",
+      "fixturepy.ring_b"
     ]
   ],
   "warnings": [

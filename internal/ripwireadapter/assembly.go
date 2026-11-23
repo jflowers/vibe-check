@@ -142,7 +142,19 @@ func (a *Adapter) Analyze(ctx context.Context, projectPath string) (*metrics.Mod
 		return nil, fmt.Errorf("ripwire adapter: cc output of %s: %w", projectPath, err)
 	}
 
-	mapping, err := mapToModules(a.language, table, deps)
+	// Python member-import light parse: recovers the imported names of
+	// `from B import n` that --deps drops, so wide-form subpackage
+	// imports reach cycle derivation (wide-form-cycle-edges design D4).
+	var memberImports map[string][]memberImport
+	var memberWarnings []metrics.Warning
+	if a.language == languagePython {
+		memberImports, memberWarnings, err = pythonMemberImportScan(crawlRoot)
+		if err != nil {
+			return nil, fmt.Errorf("ripwire adapter: member-import scan of %s: %w", projectPath, err)
+		}
+	}
+
+	mapping, err := mapToModules(a.language, table, deps, memberImports)
 	if err != nil {
 		return nil, fmt.Errorf("ripwire adapter: mapping %s: %w", projectPath, err)
 	}
@@ -223,6 +235,7 @@ func (a *Adapter) Analyze(ctx context.Context, projectPath string) (*metrics.Mod
 	warnings = append(warnings, depsWindowWarning(deps)...)
 	warnings = append(warnings, mapping.Warnings...)
 	warnings = append(warnings, cycleWarnings...)
+	warnings = append(warnings, memberWarnings...)
 	warnings = append(warnings, abstractnessWarnings...)
 	warnings = append(warnings, lcomWarnings...)
 	warnings = append(warnings, errorBudgetWarning(a.language))

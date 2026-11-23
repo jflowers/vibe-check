@@ -10,6 +10,12 @@
 > cycle are identical under the new recordings). Derived values were again
 > produced by `metrics.Compute*` in a scratch program outside the
 > repository and the result validated with `metrics.Validate`.
+>
+> Revised again by `openspec/changes/wide-form-cycle-edges` task 2.3: the
+> Python recordings re-captured with the same 0.7.0 release for the
+> `ring_a`/`ring_b` fixture packages (two new modules, `fixturepy` Ca 1 → 2,
+> a second cycle closed only by a wide-form member edge). TypeScript is
+> unchanged.
 
 `python/golden.json` and `typescript/golden.json` in this directory are the
 hand-computed, pinned acceptance targets for analyzing the two fixture
@@ -144,7 +150,8 @@ Config files the crawl indexes at a TypeScript root (`package.json`,
 **0** — the honest count of its source lines, not the "not determined"
 sentinel. Python: fixturepy = 1 + 94 = **95**, alias = 1 + 8 = **9**,
 collide = 1 + 8 + 6 = **15**, cycle_a = 10 + 6 = **16**, cycle_b = **16**,
-operations = **1**, wide = 1 + 8 = **9**; TS: `.` = **0** (config only),
+operations = **1**, wide = 1 + 8 = **9**, ring_a = 12 + 6 = **18**,
+ring_b = **10**; TS: `.` = **0** (config only),
 src = **60** (`models.ts`; an earlier draft of this ledger said 92, an
 arithmetic slip that folded in the cycle directories' 32), cycle-a/b =
 **16**. ripwire's `loc` is a *physical* line count, a different
@@ -182,29 +189,32 @@ lexicographically; the single cycle per graph needs no inter-cycle ordering.
 
 ## Python golden — value-by-value ledger
 
-Module set = the eight `<m>` rows of `arch.txt`. ripwire 0.7.0 indexes a
+Module set = the ten `<m>` rows of `arch.txt`. ripwire 0.7.0 indexes a
 `build/` directory whose files git tracks, and the recording is captured
 inside this repository's checkout, so `operations/build` is present
-(`deps.xml` `health files="16"`, all 16 fixture `.py` files) and there is
+(`deps.xml` `health files="19"`, all 19 fixture `.py` files) and there is
 no `<pruned_packages>`. (Captured outside git, as `python-mixed/` is, it is
 pruned and disclosed.)
 
 | path | ca | ce | expTypes | absTypes | I | A | D | lcom | zone |
 |------|----|----|----------|----------|---|---|---|------|------|
-| `fixturepy` | 1 | 0 | 4 | 1 | 0 | 0.25 | 0.75 | 6 | normal |
+| `fixturepy` | 2 | 0 | 4 | 1 | 0 | 0.25 | 0.75 | 6 | normal |
 | `fixturepy.alias` | 0 | 1 | 0 | 0 | 1 | 0 | 0 | 0 | main-sequence |
 | `fixturepy.collide` | 0 | 0 | 0 | 0 | 0 | 0 | 1 | 0 | zone-of-pain |
 | `fixturepy.cycle_a` | 2 | 1 | 0 | 0 | 0.3333333333333333 | 0 | 0.6666666666666667 | 0 | normal |
 | `fixturepy.cycle_b` | 2 | 1 | 0 | 0 | 0.3333333333333333 | 0 | 0.6666666666666667 | 0 | normal |
 | `fixturepy.operations` | 0 | 0 | 0 | 0 | 0 | 0 | 1 | 0 | zone-of-pain |
 | `fixturepy.operations.build` | 0 | 0 | 0 | 0 | 0 | 0 | 1 | 0 | zone-of-pain |
+| `fixturepy.ring_a` | 1 | 2 | 0 | 0 | 0.6666666666666666 | 0 | 0.33333333333333337 | 0 | normal |
+| `fixturepy.ring_b` | 1 | 1 | 0 | 0 | 0.5 | 0 | 0.5 | 0 | normal |
 | `fixturepy.wide` | 0 | 2 | 0 | 0 | 1 | 0 | 0 | 0 | main-sequence |
 
 ### `fixturepy`
 
-- **ca=1, ce=0** — `arch.txt` `<m path="fixturepy" ca="1" ce="0">` (table
-  authoritative). The afferent edge is `wide`'s `from fixturepy import
-  cycle_b`, which also reaches `fixturepy/__init__.py`. Note `models.py` imports `abc` (stdlib): that edge is
+- **ca=2, ce=0** — `arch.txt` `<m path="fixturepy" ca="2" ce="0">` (table
+  authoritative). The afferent edges are `wide`'s `from fixturepy import
+  cycle_b` and `ring_a`'s `from fixturepy import ring_b`, which also reach
+  `fixturepy/__init__.py`. Note `models.py` imports `abc` (stdlib): that edge is
   out-of-corpus, so the table reports `ce=0` and `cc.json` reports
   `fan_out=0` for `models.py` ("In-corpus files this file depends on").
   D6's "count external targets in Ce only" is a no-op on this fixture — no
@@ -217,7 +227,7 @@ pruned and disclosed.)
   deliberately **not** used (D3/D8: ripwire's Python abstractness is
   structurally zero; its `types=5` counts all five classes including
   `_Internal`).
-- **I** = `ComputeInstability(1,0)` = 0. Agrees with arch `I="0.00"`.
+- **I** = `ComputeInstability(2,0)` = 0. Agrees with arch `I="0.00"`.
 - **A** = `ComputeAbstractness(1,4)` = 0.25.
 - **D** = `ComputeDistance(0.25, 0)` = |0.25 + 0 − 1| = 0.75.
 - **lcom=6** — class ledger below.
@@ -247,10 +257,10 @@ Module total: 1 + 2 + 1 + 1 + 1 = **6**.
 - **ca=2, ce=1** — arch table. Each package imports the other's `api`
   (ce=1 each). The second afferent edge differs: `cycle_a` gains `alias`'s
   `import fixturepy.cycle_a.api as ca` (gap 2); `cycle_b` gains `wide`'s
-  `from fixturepy import cycle_b` (gap 1). Only `cycle_a`'s is visible in
-  the adapter's name-resolved edge set (`--deps` records `wide`'s import
-  as written, `"fixturepy"`); Ca comes from the table, so the golden is
-  unaffected.
+  `from fixturepy import cycle_b` (gap 1). `--deps` records `wide`'s import
+  as written (`"fixturepy"`), so the adapter's edge to `cycle_b` comes from
+  its member-import light parse (`wide-form-cycle-edges`); Ca comes from
+  the table either way.
 - **exportedTypes=0, abstractTypes=0** — no class declarations anywhere in
   either package (`__init__.py` is an import + docstring; `api.py` defines a
   module-level function). A = `ComputeAbstractness(0,0)` = 0 (the 0/0
@@ -301,6 +311,20 @@ lcom=0**.
 These three rows are the golden's pin on the adopted import fixes: a pin
 change that alters their resolution changes a golden value.
 
+### `fixturepy.ring_a` / `fixturepy.ring_b`
+
+`ring_a` holds `__init__.py` (12 lines: docstring, `from fixturepy import
+ring_b`, `__all__`) and `api.py` (6 lines, one module-level function);
+`ring_b` holds `__init__.py` (10 lines). No classes → **types 0/0, A=0,
+lcom=0**.
+
+- **ring_a: ca=1, ce=2** — the wide-form import resolves to
+  `fixturepy/__init__.py` and `ring_b/__init__.py` (gap 1); the afferent
+  edge is `ring_b`'s `from fixturepy.ring_a.api import marker`.
+  **I** = 2/3 = 0.6666666666666666, **D** = |0 + 2/3 − 1| =
+  0.33333333333333337 → **normal** (A < 0.2, I ≥ 0.2).
+- **ring_b: ca=1, ce=1** — **I** = 0.5, **D** = 0.5 → **normal**.
+
 ### Cycle
 
 `deps.xml` file-level edges: `cycle_a/__init__.py` →
@@ -313,6 +337,20 @@ strongly-connected pair. Canonical lexicographic membership:
 
 ```json
 ["fixturepy.cycle_a", "fixturepy.cycle_b"]
+```
+
+The second cycle, `["fixturepy.ring_a", "fixturepy.ring_b"]`, closes only
+through a member edge. `deps.xml` records `ring_a/__init__.py` →
+`<inc t="fixturepy">` (name-resolves to `fixturepy`) and
+`ring_b/__init__.py` → `<inc t="fixturepy.ring_a.api">` (→ `ring_a`). The
+member-import light parse adds `ring_a → ring_b` from `from fixturepy import
+ring_b`, anchored to that `fixturepy` include, which closes the pair. At
+file grain the ring is acyclic (`ring_a/__init__.py → ring_b/__init__.py →
+ring_a/api.py`), so ripwire lists no cycle. Golden `cycles` (sorted by first
+member):
+
+```json
+[["fixturepy.cycle_a", "fixturepy.cycle_b"], ["fixturepy.ring_a", "fixturepy.ring_b"]]
 ```
 
 Python `deps.xml` carries **no `<cycles>` element** (README, "Reading the
@@ -447,7 +485,7 @@ parse clean); `coupling-floor` (no `zone="unknown"` row).
 
 ## Cross-check summary: golden vs `arch.txt`
 
-Ca, Ce, and I agree with `arch.txt` for **all eleven modules** (no
+Ca, Ce, and I agree with `arch.txt` for **all fourteen modules** (no
 divergences; arch prints I to two decimals). A agrees everywhere except the one deliberate Python
 light-parse substitution. D and zone diverge only downstream of A or of
 ComputeZone's boundary semantics:
@@ -457,7 +495,7 @@ ComputeZone's boundary semantics:
 | py `fixturepy` | A | 0.00 | 0.25 | light parse per D3/D8 (ripwire Python A structurally zero) |
 | py `fixturepy` | D | 1.00 | 0.75 | derives from light-parse A |
 | py `fixturepy` | zone | pain | normal | derives from light-parse A |
-| py `cycle_a`, `cycle_b` | zone | n/a | normal | ComputeZone has no n/a; untyped → A=0 via 0/0 |
+| py `cycle_a`, `cycle_b`, `ring_a`, `ring_b` | zone | n/a | normal | ComputeZone has no n/a; untyped → A=0 via 0/0 |
 | py `alias`, `wide` | zone | n/a | main-sequence | untyped, I=1, D=0 under ComputeZone |
 | py `operations`, `collide` | zone | n/a | zone-of-pain | A=0, I=0, D=1 under ComputeZone |
 | ts `.` | zone | n/a | zone-of-pain | same |
