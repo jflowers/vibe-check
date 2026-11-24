@@ -19,7 +19,7 @@ import (
 func TestDetectDenylistPruned_PythonFixture(t *testing.T) {
 	t.Parallel()
 
-	warnings, err := detectDenylistPruned(filepath.Join("testdata", "python", "src"), nil, 0)
+	warnings, err := detectDenylistPruned(filepath.Join("testdata", "python", "src"), nil, nil, 0)
 	if err != nil {
 		t.Fatalf("detectDenylistPruned: %v", err)
 	}
@@ -41,7 +41,7 @@ func TestDetectDenylistPruned_PythonFixture(t *testing.T) {
 func TestDetectDenylistPruned_TypeScriptFixture(t *testing.T) {
 	t.Parallel()
 
-	warnings, err := detectDenylistPruned(filepath.Join("testdata", "typescript"), nil, 0)
+	warnings, err := detectDenylistPruned(filepath.Join("testdata", "typescript"), nil, nil, 0)
 	if err != nil {
 		t.Fatalf("detectDenylistPruned: %v", err)
 	}
@@ -114,7 +114,7 @@ func TestDetectDenylistPruned_SyntheticTrees(t *testing.T) {
 			dir := t.TempDir()
 			tc.build(t, dir)
 
-			warnings, err := detectDenylistPruned(dir, nil, 0)
+			warnings, err := detectDenylistPruned(dir, nil, nil, 0)
 			if err != nil {
 				t.Fatalf("detectDenylistPruned: %v", err)
 			}
@@ -159,7 +159,7 @@ func TestDetectDenylistPruned_InvalidRoots(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			warnings, err := detectDenylistPruned(tc.root, nil, 0)
+			warnings, err := detectDenylistPruned(tc.root, nil, nil, 0)
 			if err == nil {
 				t.Fatalf("got warnings %v and no error, want error", warnings)
 			}
@@ -220,7 +220,7 @@ func TestDetectDenylistPruned_UnionWithRipwire(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			warnings, err := detectDenylistPruned(tc.root, tc.ripwirePruned, tc.ripwireCount)
+			warnings, err := detectDenylistPruned(tc.root, nil, tc.ripwirePruned, tc.ripwireCount)
 			if err != nil {
 				t.Fatalf("detectDenylistPruned: %v", err)
 			}
@@ -251,7 +251,7 @@ func TestDetectDenylistPruned_PlainDirectoryFromPreCheck(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(dir, "pkg", "dist", "bundle.py"), []byte("x = 1\n"), 0o644); err != nil {
 		t.Fatalf("write: %v", err)
 	}
-	warnings, err := detectDenylistPruned(dir, nil, 0)
+	warnings, err := detectDenylistPruned(dir, nil, nil, 0)
 	if err != nil {
 		t.Fatalf("detectDenylistPruned: %v", err)
 	}
@@ -273,5 +273,72 @@ func TestDenylistNamesMatchRipwire(t *testing.T) {
 		if crawlDenylistNames[i] != name {
 			t.Errorf("denylist names[%d]: got %q, want %q", i, crawlDenylistNames[i], name)
 		}
+	}
+}
+
+// TestDetectDenylistPruned_IndexedCandidateNotReported pins the pinned
+// release's tracked-build/ behavior: ripwire indexes a build/ directory
+// whose files git tracks, so a denylist-named directory with an --arch
+// module at or beneath it is not reported, while a nested candidate ripwire
+// did not index still is.
+func TestDetectDenylistPruned_IndexedCandidateNotReported(t *testing.T) {
+	t.Parallel()
+
+	pythonRoot := filepath.Join("testdata", "python", "src")
+	dir := t.TempDir()
+	for _, f := range []string{"pkg/build/sub/a.py", "pkg/build/dist/b.py"} {
+		path := filepath.Join(dir, filepath.FromSlash(f))
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatalf("mkdir: %v", err)
+		}
+		if err := os.WriteFile(path, []byte("x = 1\n"), 0o644); err != nil {
+			t.Fatalf("write: %v", err)
+		}
+	}
+	cases := []struct {
+		name    string
+		root    string
+		indexed []string
+		want    string // full message; "" means no warning
+	}{
+		{
+			name:    "indexed row equals the candidate",
+			root:    pythonRoot,
+			indexed: []string{"fixturepy", "fixturepy/operations", "fixturepy/operations/build"},
+		},
+		{
+			name:    "dot-slash row form",
+			root:    pythonRoot,
+			indexed: []string{"./fixturepy/operations/build"},
+		},
+		{
+			name:    "sibling prefix is not beneath",
+			root:    pythonRoot,
+			indexed: []string{"fixturepy/operations/buildx"},
+			want:    "ripwire prunes source-bearing denylist directories from the crawl: fixturepy/operations/build",
+		},
+		{
+			name:    "indexed beneath the candidate; nested candidate still reported",
+			root:    dir,
+			indexed: []string{"pkg/build/sub"},
+			want:    "ripwire prunes source-bearing denylist directories from the crawl: pkg/build/dist",
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			warnings, err := detectDenylistPruned(tc.root, tc.indexed, nil, 0)
+			if err != nil {
+				t.Fatalf("detectDenylistPruned: %v", err)
+			}
+			if tc.want == "" {
+				if len(warnings) != 0 {
+					t.Fatalf("warnings: got %v, want none", warnings)
+				}
+				return
+			}
+			if len(warnings) != 1 || warnings[0].Message != tc.want {
+				t.Errorf("warnings: got %+v, want one with message %q", warnings, tc.want)
+			}
+		})
 	}
 }

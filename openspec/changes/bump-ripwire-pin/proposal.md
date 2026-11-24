@@ -13,7 +13,7 @@ Python import-resolution gaps that the Phase 0 spike (#67) measured on pip:
 | 2 — `import a.b as c` never resolves | ours | redhat-et/ripwire#530 | v0.6.10 |
 | 3 — crawl denylist prunes silently | maintainer | Train 44 (#485): `--skipped` rows + `<pruned_packages>` | v0.6.10 |
 | 4 — stdlib-name collisions draw false sibling edges | maintainer | Train 44 (#485), plus src-layout resolution | v0.6.10 |
-| 1 — wide-form `from pkg import mod` loses the member edge | ours | redhat-et/ripwire#533 | **unreleased** (expected 0.6.11) |
+| 1 — wide-form `from pkg import mod` loses the member edge | ours | redhat-et/ripwire#533 | **v0.7.0** (0.6.11 was skipped) |
 
 The spike's own ground truth puts the stakes plainly: django's Ce is 60% exact
 without the wide-form fix and 100% with it. Users of `vibe-check analyze` on
@@ -34,7 +34,7 @@ edit.
 ## What Changes
 
 - **Re-pin** `internal/ripwireadapter/version.go` to the first published
-  ripwire release containing redhat-et/ripwire#533 (expected `0.6.11`), at its
+  ripwire release containing redhat-et/ripwire#533 (released as `0.7.0`), at its
   release commit. Skip `0.6.10` as an intermediate pin: it lacks fix 1, and
   every pin move re-records every golden. Fail-closed semantics are unchanged.
 - **Narrow the `--arch` parse contract to what the adapter consumes**: the

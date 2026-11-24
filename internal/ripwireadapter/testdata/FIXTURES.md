@@ -23,8 +23,8 @@ Properties shared by every fixture file:
 | `python/src/fixturepy/__init__.py` | Package root marker for the src layout. |
 | `python/src/fixturepy/models.py` | Classification and LCOM scenarios — see table below. |
 | `python/src/fixturepy/operations/__init__.py` | Regular subpackage marker. |
-| `python/src/fixturepy/operations/build/__init__.py` | Real Python package inside a directory named `build` (denylist name). |
-| `python/src/fixturepy/operations/build/steps.py` | Source file inside the denylist-named directory; gives the denylist-pruned warning a concrete target. |
+| `python/src/fixturepy/operations/build/__init__.py` | Real Python package inside a directory named `build` (denylist name). git tracks it, so the pinned release indexes it in the `python` recordings (an isolated module); the `python-mixed` recordings, captured outside git, show it pruned. |
+| `python/src/fixturepy/operations/build/steps.py` | Source file inside the denylist-named directory; the `denylist-pruned` warning's concrete target when it is pruned (non-git capture), and the pre-check's indexed-candidate case when it is not. |
 | `python/src/fixturepy/cycle_a/__init__.py` | Cycle side A: `from fixturepy.cycle_b.api import helper_b` (import edge A → B). |
 | `python/src/fixturepy/cycle_a/api.py` | Defines `helper_a`, imported by cycle side B. |
 | `python/src/fixturepy/cycle_b/__init__.py` | Cycle side B: `from fixturepy.cycle_a.api import helper_a` (import edge B → A). |

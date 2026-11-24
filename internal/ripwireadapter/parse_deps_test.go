@@ -32,11 +32,11 @@ func TestParseDepsOutput_RecordedPython(t *testing.T) {
 		t.Errorf("root: got %q, want %q", graph.Root, ".")
 	}
 
-	if graph.Health.Files != 14 || graph.Health.DepFiles != 14 {
-		t.Errorf("health: got files=%d dep_files=%d, want 14/14", graph.Health.Files, graph.Health.DepFiles)
+	if graph.Health.Files != 16 || graph.Health.DepFiles != 16 {
+		t.Errorf("health: got files=%d dep_files=%d, want 16/16", graph.Health.Files, graph.Health.DepFiles)
 	}
-	if graph.Health.CCD != 20 || graph.Health.ACD != 1.4 || graph.Health.NCCD != 0.45 {
-		t.Errorf("health: got ccd=%d acd=%v nccd=%v, want 20/1.4/0.45", graph.Health.CCD, graph.Health.ACD, graph.Health.NCCD)
+	if graph.Health.CCD != 22 || graph.Health.ACD != 1.4 || graph.Health.NCCD != 0.41 {
+		t.Errorf("health: got ccd=%d acd=%v nccd=%v, want 22/1.4/0.41", graph.Health.CCD, graph.Health.ACD, graph.Health.NCCD)
 	}
 	if graph.Health.Shape != "horizontal" {
 		t.Errorf("health shape: got %q, want horizontal", graph.Health.Shape)
@@ -226,11 +226,11 @@ func TestParseCCOutput_RecordedPython(t *testing.T) {
 		t.Fatalf("parseCCOutput: %v", err)
 	}
 
-	if len(files) != 14 {
-		t.Fatalf("files: got %d (%v), want 14 (operations/build is pruned)", len(files), ccPaths(files))
+	if len(files) != 16 {
+		t.Fatalf("files: got %d (%v), want 16 (tracked operations/build is indexed)", len(files), ccPaths(files))
 	}
-	if n := countCCFilesWithPrefix(files, "fixturepy/operations/build"); n != 0 {
-		t.Errorf("pruned operations/build: got %d files under it, want 0", n)
+	if n := countCCFilesWithPrefix(files, "fixturepy/operations/build"); n != 2 {
+		t.Errorf("tracked operations/build: got %d files under it, want 2", n)
 	}
 
 	byPath := ccFileByPath(files)

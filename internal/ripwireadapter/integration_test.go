@@ -93,7 +93,7 @@ func TestIntegration_PythonFixturePipeline(t *testing.T) {
 	}
 
 	wantCodes := []string{
-		"cycle-approximation", "denylist-pruned", "directory-as-module",
+		"cycle-approximation", "directory-as-module",
 		"error-budget", "name-resolved-edges", "unsupported-metric",
 	}
 	gotCodes := make([]string, 0, len(graph.Warnings))
@@ -137,6 +137,19 @@ func TestIntegration_MixedLanguagePipeline(t *testing.T) {
 	}
 	if len(floors) != 1 || !strings.Contains(floors[0].Message, "fixturepy.cycle_a") || !strings.Contains(floors[0].Message, "go") {
 		t.Errorf("coupling-floor warnings: got %+v, want one naming fixturepy.cycle_a and go", floors)
+	}
+
+	// This recording was captured outside git, where ripwire prunes the
+	// build/ package: both sources name it and the warning lists it once.
+	var denylist []metrics.Warning
+	for _, w := range graph.Warnings {
+		if w.Code == warningDenylistPruned {
+			denylist = append(denylist, w)
+		}
+	}
+	wantDenylist := "ripwire prunes source-bearing denylist directories from the crawl: fixturepy/operations/build"
+	if len(denylist) != 1 || denylist[0].Message != wantDenylist {
+		t.Errorf("denylist-pruned warnings: got %+v, want one with message %q", denylist, wantDenylist)
 	}
 
 	for _, m := range graph.Modules {

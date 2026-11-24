@@ -99,13 +99,14 @@ func TestMapToModules_RecordedPython(t *testing.T) {
 	// Pinned deliberately: see openspec/changes/bump-ripwire-pin design,
 	// Risks ("wide-form member edges are invisible to cycle derivation").
 	want := map[string]mappedModule{
-		"fixturepy":            {Identity: "fixturepy", Name: "fixturepy", Ca: 1, Ce: 0, Types: 5, Abstract: 0, InternalIn: 1, ExternalOut: 1},
-		"fixturepy.alias":      {Identity: "fixturepy.alias", Name: "alias", Ca: 0, Ce: 1, InternalOut: 1},
-		"fixturepy.collide":    {Identity: "fixturepy.collide", Name: "collide", Ca: 0, Ce: 0, ExternalOut: 1},
-		"fixturepy.cycle_a":    {Identity: "fixturepy.cycle_a", Name: "cycle_a", Ca: 2, Ce: 1, InternalOut: 1, InternalIn: 2},
-		"fixturepy.cycle_b":    {Identity: "fixturepy.cycle_b", Name: "cycle_b", Ca: 2, Ce: 1, InternalOut: 1, InternalIn: 1},
-		"fixturepy.operations": {Identity: "fixturepy.operations", Name: "operations", Ca: 0, Ce: 0},
-		"fixturepy.wide":       {Identity: "fixturepy.wide", Name: "wide", Ca: 0, Ce: 2, InternalOut: 1},
+		"fixturepy":                  {Identity: "fixturepy", Name: "fixturepy", Ca: 1, Ce: 0, Types: 5, Abstract: 0, InternalIn: 1, ExternalOut: 1},
+		"fixturepy.alias":            {Identity: "fixturepy.alias", Name: "alias", Ca: 0, Ce: 1, InternalOut: 1},
+		"fixturepy.collide":          {Identity: "fixturepy.collide", Name: "collide", Ca: 0, Ce: 0, ExternalOut: 1},
+		"fixturepy.cycle_a":          {Identity: "fixturepy.cycle_a", Name: "cycle_a", Ca: 2, Ce: 1, InternalOut: 1, InternalIn: 2},
+		"fixturepy.cycle_b":          {Identity: "fixturepy.cycle_b", Name: "cycle_b", Ca: 2, Ce: 1, InternalOut: 1, InternalIn: 1},
+		"fixturepy.operations":       {Identity: "fixturepy.operations", Name: "operations", Ca: 0, Ce: 0},
+		"fixturepy.operations.build": {Identity: "fixturepy.operations.build", Name: "build", Ca: 0, Ce: 0},
+		"fixturepy.wide":             {Identity: "fixturepy.wide", Name: "wide", Ca: 0, Ce: 2, InternalOut: 1},
 	}
 	if len(mapping.Modules) != len(want) {
 		t.Fatalf("modules: got %d, want %d", len(mapping.Modules), len(want))

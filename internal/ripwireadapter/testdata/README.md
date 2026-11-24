@@ -37,27 +37,26 @@ that root and break byte-stability.
 
 ## Binary provenance — the validated (version, commit) pair
 
-> **PROVISIONAL (Phase A).** The recordings below were captured from a
-> Release **source build** of ripwire `main`, not a published release:
-> `openspec/changes/bump-ripwire-pin` design D8 develops against `main`
-> until upstream publishes the first release containing
-> redhat-et/ripwire#533. The committed `version.txt` files are therefore a
-> **hand-written release-shaped line** — the real `--version` line with
-> its version token replaced by the expected release number — so the
-> fake harness passes the provisional pin in `version.go`. Phase B
-> (tasks 7.1–7.3) replaces this table, every `version.txt`, and the pin
-> with the published release's values, and re-captures every recording.
+The recordings were captured from the published ripwire 0.7.0 release
+(the first release containing redhat-et/ripwire#533; upstream skipped
+0.6.11), the pair `version.go` pins. `version.txt` is the binary's
+`--version` output, verbatim.
 
-| Field | Phase A value |
-|-------|---------------|
-| Real `--version` line | `ripwire 0.6.10-dev.65+g1edb6fd6a (Release, AppleClang 21.0.0.21000334, emit=std::print, built_from=1edb6fd6a)` |
-| Committed `version.txt` (provisional) | `ripwire 0.6.11 (Release, AppleClang 21.0.0.21000334, emit=std::print, built_from=1edb6fd6a)` |
-| Source commit | `1edb6fd6a` (redhat-et/ripwire `main`; contains #533's merge `0b8f0bf8`) |
-| Build | `cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build --target ripwire` |
+| Field | Value |
+|-------|-------|
+| `--version` line | `ripwire 0.7.0 (Release, AppleClang 21.0.0.21000101, emit=std::print, act=on, rows=lines, built_from=5a3df049e)` |
+| Release | <https://github.com/redhat-et/ripwire/releases/tag/v0.7.0> (tag commit `5a3df049e032dc537cad2b26eb8c48f3c4b9b670`; contains #533's merge `0b8f0bf8`) |
+| Archive | `ripwire-0.7.0-macos-arm64.tar.gz`, sha256 `32e0fcd96ece495b7ab23274e5f14d9d275767ab498299c3c2cd49379e1fcff7` (matches the published `.sha256` asset) |
+| Binary sha256 | `36b41c5eb6f213fd6a48f203fd29b0b1f1cb56d24d93bb4923ce12ea5a6de4d7` |
 | Platform | `macos-arm64` (AppleClang 21) |
-| Binary sha256 | `bf8cd107b515d1a4d36cdc2fd6ce7530042c0334bf30f302cc8f0732b01d3570` |
 
-The binary was built and run **outside the repository** and must never be
+Phase A (`openspec/changes/bump-ripwire-pin` design D8) captured from a
+source build of `main` @ `1edb6fd6a`. Against it, the 0.7.0 re-capture is
+byte-identical for `typescript/` and `python-mixed/`; `python/` differs
+only because 0.7.0 indexes a `build/` directory whose files git tracks (see
+"Reading the recordings").
+
+The binary was extracted and run **outside the repository** and must never be
 committed or copied into the repo.
 
 ## Capture commands (exact, as run)
@@ -66,7 +65,7 @@ All commands run from the repository root. `$RIPWIRE` is the binary from
 the provenance table. Each subshell `cd`s into the crawl root and passes `.`
 so the recorded `root=` attribute is `"."` and row paths are
 root-relative, making the recordings independent of the checkout path.
-`version.txt` is written per the provenance note above.
+`version.txt` is the binary's `--version` output.
 
 ### Python fixture (src layout — crawl from `src/`, never the project root)
 
@@ -112,7 +111,8 @@ are `0` by construction.
 emptied: the root's `files=`, `shown=`, `total=`, and `next_offset=` set to
 `0`; `<godfiles>` emptied to `total="0" shown="0"`; every `<f>` file row and
 any `<cycles>` element removed; a trailing newline added. `<health>` and
-`<pruned_packages>` are kept as captured. It drives the zero-coupling guard
+`<pruned_packages>` (absent in the pinned release's `python/` capture) are
+kept as captured. It drives the zero-coupling guard
 test (an edgeless crawl over a non-empty corpus).
 
 ## Flag choices and why
@@ -157,27 +157,32 @@ Results — every recording byte-identical across the two runs:
 
 | Recording | Bytes |
 |-----------|-------|
-| `python/arch.txt` | 3144 |
-| `python/deps.xml` | 2758 |
-| `python/cc.json` | 3086 |
+| `python/arch.txt` | 2709 |
+| `python/deps.xml` | 2214 |
+| `python/cc.json` | 3403 |
 | `typescript/arch.txt` | 2172 |
 | `typescript/deps.xml` | 2123 |
 | `typescript/cc.json` | 1672 |
 | `python-mixed/arch.txt` | 4077 |
 | `python-mixed/deps.xml` | 3547 |
 | `python-mixed/cc.json` | 3504 |
-| `*/version.txt` (provisional, hand-written) | 92 |
+| `*/version.txt` | 111 |
 
 ## Reading the recordings (fixture-specific facts)
 
 - **Row paths carry no `./` prefix** in the pinned release
   (`fixturepy/cycle_a`; 0.6.9 printed `./fixturepy/cycle_a`). The crawl
   root row is still `.`. The mapping accepts both forms.
-- **Python `operations/build` is pruned and now disclosed.** ripwire
-  hard-prunes directories named `build`; `arch.txt` and `deps.xml` carry
-  `<pruned_packages count="1">` naming `fixturepy/operations/build`
-  (it holds an `__init__.py`). The adapter's `denylist-pruned` warning
-  lists the union of this disclosure and its own pre-check.
+- **Python `operations/build` depends on git.** ripwire 0.7.0 indexes a
+  `build/` directory whose files git tracks and prunes it otherwise. The
+  `python/` capture runs inside this repository's checkout, so
+  `fixturepy/operations/build` is an isolated eighth module (`ca="0"
+  ce="0"`), `cc.json` lists its two files, and there is no
+  `<pruned_packages>`; the adapter's pre-check drops a denylist-named
+  directory ripwire indexed, so the graph carries no `denylist-pruned`
+  warning. The `python-mixed/` capture runs on a temporary copy outside
+  git: there `<pruned_packages count="1">` names the directory and the
+  warning lists it once (union of that disclosure and the pre-check).
 - **The three import-fix packages show at directory grain:** `wide`
   `ce="2"` (gap 1: `from fixturepy import cycle_b` reaches the `cycle_b`
   subpackage), `alias` `ce="1"` (gap 2), `collide` `ce="0"` (gap 4).
@@ -210,7 +215,7 @@ Results — every recording byte-identical across the two runs:
 
 ## Re-capture procedure
 
-1. Obtain the binary named in the provenance table (Phase B: download the
+1. Obtain the binary named in the provenance table (download the
    release archive, verify its published sha256, extract outside the
    repository) and confirm it prints the expected `--version` line.
 2. From the repository root, run every command in "Capture commands"

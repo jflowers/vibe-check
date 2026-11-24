@@ -93,6 +93,21 @@
       "totalLines": 1
     },
     {
+      "path": "fixturepy.operations.build",
+      "name": "build",
+      "ca": 0,
+      "ce": 0,
+      "exportedTypes": 0,
+      "abstractTypes": 0,
+      "instability": 0,
+      "abstractness": 0,
+      "distance": 1,
+      "lcom": 0,
+      "zone": "zone-of-pain",
+      "duplications": [],
+      "totalLines": 15
+    },
+    {
       "path": "fixturepy.wide",
       "name": "wide",
       "ca": 0,
@@ -118,10 +133,6 @@
     {
       "code": "cycle-approximation",
       "message": "cycle-approximation"
-    },
-    {
-      "code": "denylist-pruned",
-      "message": "denylist-pruned"
     },
     {
       "code": "directory-as-module",

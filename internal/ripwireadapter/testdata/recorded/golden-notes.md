@@ -3,7 +3,10 @@
 > Revised by `openspec/changes/bump-ripwire-pin` task 6.1: recordings
 > re-captured from the provisional Phase A binary (see `../README.md`), and
 > the Python golden regenerated for the `wide`/`alias`/`collide` fixture
-> packages. The TypeScript golden is unchanged (its coupling, types, and
+> packages. Revised again by task 7.3 for the published ripwire 0.7.0:
+> it indexes the git-tracked `operations/build` directory, which adds the
+> isolated `fixturepy.operations.build` module and drops the
+> `denylist-pruned` warning; every other value is unchanged. The TypeScript golden is unchanged (its coupling, types, and
 > cycle are identical under the new recordings). Derived values were again
 > produced by `metrics.Compute*` in a scratch program outside the
 > repository and the result validated with `metrics.Validate`.
@@ -179,11 +182,12 @@ lexicographically; the single cycle per graph needs no inter-cycle ordering.
 
 ## Python golden — value-by-value ledger
 
-Module set = the seven `<m>` rows of `arch.txt`. `operations/build` is
-**absent everywhere** (ripwire hard-prunes denylist-named directories;
-`deps.xml` `health files="14"` against 16 fixture `.py` files) and is now
-also disclosed by ripwire's `<pruned_packages>` — together the source of the
-`denylist-pruned` warning.
+Module set = the eight `<m>` rows of `arch.txt`. ripwire 0.7.0 indexes a
+`build/` directory whose files git tracks, and the recording is captured
+inside this repository's checkout, so `operations/build` is present
+(`deps.xml` `health files="16"`, all 16 fixture `.py` files) and there is
+no `<pruned_packages>`. (Captured outside git, as `python-mixed/` is, it is
+pruned and disclosed.)
 
 | path | ca | ce | expTypes | absTypes | I | A | D | lcom | zone |
 |------|----|----|----------|----------|---|---|---|------|------|
@@ -193,6 +197,7 @@ also disclosed by ripwire's `<pruned_packages>` — together the source of the
 | `fixturepy.cycle_a` | 2 | 1 | 0 | 0 | 0.3333333333333333 | 0 | 0.6666666666666667 | 0 | normal |
 | `fixturepy.cycle_b` | 2 | 1 | 0 | 0 | 0.3333333333333333 | 0 | 0.6666666666666667 | 0 | normal |
 | `fixturepy.operations` | 0 | 0 | 0 | 0 | 0 | 0 | 1 | 0 | zone-of-pain |
+| `fixturepy.operations.build` | 0 | 0 | 0 | 0 | 0 | 0 | 1 | 0 | zone-of-pain |
 | `fixturepy.wide` | 0 | 2 | 0 | 0 | 1 | 0 | 0 | 0 | main-sequence |
 
 ### `fixturepy`
@@ -260,12 +265,21 @@ Module total: 1 + 2 + 1 + 1 + 1 = **6**.
 ### `fixturepy.operations`
 
 - **ca=0, ce=0, types=0** — arch table. Only content is `__init__.py`
-  (docstring); `build/` is pruned. **I=0, A=0, D=1, lcom=0**.
+  (docstring); `build/` is its own module (below). **I=0, A=0, D=1,
+  lcom=0**.
 - **zone = zone-of-pain** (A = 0 < 0.2 and I = 0 < 0.2, D = 1 ≥ 0.2). Arch
   says `zone="n/a"`; ComputeZone classifies it. Note ripwire's own
   `zone_pain="1"` aggregate counted *fixturepy* (under its A=0.00); under the
   golden's conventions the zone-of-pain module is *operations*. Different A
   sources, not a contradiction.
+
+### `fixturepy.operations.build`
+
+- **ca=0, ce=0, types=0** — arch table (`isolated="1"`): `__init__.py`
+  (docstring) and `steps.py` (a list constant and one module-level
+  function, no imports). No classes → **types 0/0, I=0, A=0, D=1, lcom=0**,
+  **zone = zone-of-pain**, as for `operations`.
+- **totalLines = 15** — `cc.json` loc 7 (`__init__.py`) + 8 (`steps.py`).
 
 ### `fixturepy.wide` / `fixturepy.alias` / `fixturepy.collide`
 
@@ -311,7 +325,6 @@ exists.
 | Code | Present because |
 |------|-----------------|
 | `cycle-approximation` | cycles present; membership approximate (D7, spec cycle requirement) |
-| `denylist-pruned` | `operations/build` hard-pruned (Python-only; spec denylist requirement) |
 | `directory-as-module` | every graph carries it (D4) |
 | `error-budget` | Python measured budgets for the pinned release (`budget.go`; bump-ripwire-pin design D6) |
 | `name-resolved-edges` | the Python import graph is name-based (arch note "name-based deps"; `<inc>` targets are dotted module names like `fixturepy.cycle_b.api`, resolved by name to directories — D6) |
@@ -324,7 +337,11 @@ precondition "no edges while source files exist" is false);
 `ts-abstractness-bias` (Python graph); `parse-error` (every fixture file is
 syntactically valid); `coupling-floor` (no `zone="unknown"` row — the
 `python-mixed` recordings exercise it instead, asserted in
-`TestIntegration_MixedLanguagePipeline`, without a golden).
+`TestIntegration_MixedLanguagePipeline`, without a golden);
+`denylist-pruned` (ripwire indexes the git-tracked `operations/build`, and
+the pre-check drops a denylist-named directory ripwire indexed — the
+non-git `python-mixed` recordings carry the warning, asserted in the same
+test).
 
 ---
 

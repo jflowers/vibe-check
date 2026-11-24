@@ -14,19 +14,13 @@ import (
 // mapping, and golden decision in this package was made against this
 // exact output shape. These two constants are the only code sites naming
 // the pinned pair; documentation elsewhere refers to "the pinned ripwire
-// release".
-//
-// PROVISIONAL (openspec/changes/bump-ripwire-pin design D8, Phase A): the
-// pair below is a placeholder for the first ripwire release containing
-// redhat-et/ripwire#533 — the version is the expected release number and
-// the commit is the ripwire main build the Phase A recordings were captured
-// from. Phase B (tasks 7.1–7.2) replaces both with the published release's
-// values before this change merges.
+// release". The pair is ripwire 0.7.0, the first release containing
+// redhat-et/ripwire#533 (openspec/changes/bump-ripwire-pin design D1).
 const (
 	// pinnedRipwireVersion is the validated ripwire release version.
-	pinnedRipwireVersion = "0.6.11"
+	pinnedRipwireVersion = "0.7.0"
 	// pinnedRipwireCommit is the validated commit prefix (built_from=).
-	pinnedRipwireCommit = "1edb6fd"
+	pinnedRipwireCommit = "5a3df04"
 )
 
 // ripwireInstallURL names the install location carried by the absent-binary
