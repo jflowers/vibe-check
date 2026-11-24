@@ -123,6 +123,7 @@ Python and TypeScript graphs are `partial` whenever any warning is present.
 | `--max-duplication` | float | unset (no check) | Fail if any module's duplication percentage exceeds this value. Must be in `[0.0, 100.0]`. Populated by the Go adapter; Python/TypeScript report duplication as unsupported (zero-valued), so the flag never fires for them. |
 | `--no-circular-deps` | bool | `false` | Treat any detected circular dependency as a violation. |
 | `--no-provenance` | bool | `false` | Omit the `provenance` object from output for byte-reproducible JSON. |
+| `--store` | bool | `false` | Add git snapshot metadata (`commitSHA`, `branch`) to `provenance.input` for drift tracking. See [Tracking drift over time](#tracking-drift-over-time). Ignored when `--no-provenance` is set. |
 | `--timeout` | duration | none | Bound total analysis time (e.g., `30s`, `2m`). No timeout by default. |
 | `--output`, `-o` | string | stdout | Write the ModuleGraph JSON to a file instead of stdout. Exits `2` (with no partial stdout) if the file cannot be written. |
 | `--version` | — | — | Print version, commit, and build date, then exit. Use on the root command: `vibe-check --version`. |
@@ -295,6 +296,50 @@ summary, so the report appears in the Checks UI even when the gate fails.
 This gate is advisory until a repository admin enables branch protection and marks
 `structural-gate` required — it fails the check but does not by itself block a merge.
 
+## Tracking drift over time
+
+`--store` stamps a snapshot with the git commit and branch it was taken from:
+
+```bash
+vibe-check analyze --store --output graph.json .
+```
+
+`provenance.input` then carries `commitSHA` (the full SHA from `git rev-parse HEAD`) and
+`branch` (from `git rev-parse --abbrev-ref HEAD`, so `HEAD` on a detached checkout). Either
+field is omitted when git cannot resolve it, for example outside a repository.
+`--no-provenance` takes precedence: with both flags set, no provenance is emitted.
+
+```json
+"provenance": {
+  "producer": "vibe-check",
+  "version": "0.1.0",
+  "generatedAt": "2026-09-21T12:00:00Z",
+  "input": {
+    "path": ".",
+    "modulePath": "github.com/you/proj",
+    "commitSHA": "4f2c9e1d8b7a6f5e4d3c2b1a0f9e8d7c6b5a4f3e",
+    "branch": "main"
+  }
+}
+```
+
+Stored snapshots feed the trending mode of `/vibe-check` (`/vibe-check trending <dir>`), an
+agent-rendered report from the `vibe-check-reporter` agent that `vibe-check init` deploys.
+Trending keeps its snapshot history in [Dewey](https://github.com/unbound-force/dewey) and
+requires the Dewey MCP tools; without them it stops and suggests `summary` or `detailed`
+instead. What it renders depends on how many snapshots exist for the module:
+
+- **None**: the current analysis is stored as the baseline and shown as a detailed report.
+- **One**: a point-in-time comparison against that baseline, classifying each package's
+  instability, distance, and LCOM4 change as Improving, Degrading, or Stable.
+- **Two or more**: the time-series path. The `mx-f-architecture-trend` agent captures
+  `--store` snapshots, classifies per-package trends over 7, 30, and 90-day windows,
+  renders ASCII sparklines, and raises drift alerts for sustained degradation and
+  projected threshold crossings.
+
+Each snapshot is stored once per commit SHA. Unlike `report` and `diff`, trending output is
+rendered by an agent rather than the CLI, so it is not byte-stable.
+
 ## CI integration
 
 ### Install the caller workflow
@@ -461,8 +506,10 @@ vibe-check init --ci       # additionally scaffold the structural-gate caller wo
 It writes assets to two directories:
 
 - `.opencode/agents/` — the `divisor-entropy` agent (structural-entropy reviewer that runs
-  `analyze` + `diff` across a base↔PR pair) and the `vibe-check-reporter` agent (interactive
-  metrics interpreter with summary, detailed, and trending modes).
+  `analyze` + `diff` across a base↔PR pair), the `vibe-check-reporter` agent (interactive
+  metrics interpreter with summary, detailed, and trending modes), and the
+  `mx-f-architecture-trend` agent (time-series analyst behind multi-snapshot trending; see
+  [Tracking drift over time](#tracking-drift-over-time)).
 - `.opencode/commands/` — the `/vibe-check` slash command, which delegates to the
   `vibe-check-reporter` agent for conversational architectural analysis.
 

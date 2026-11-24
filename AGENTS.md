@@ -360,6 +360,7 @@ internal/scaffold/  # Embedded asset deployment + UF policy registration for `vi
   assets/agents/    # Embedded Review Council agent assets
     divisor-entropy.md      # Structural-entropy divisor agent (source of truth)
     vibe-check-reporter.md  # Interactive metrics reporter agent (summary/detailed/trending)
+    mx-f-architecture-trend.md # Time-series drift analyst (multi-snapshot trending over --store snapshots)
   assets/commands/  # Embedded slash command assets
     vibe-check.md   # /vibe-check command (delegates to vibe-check-reporter agent)
   assets/ci/        # Embedded CI caller-workflow template (two-pin placeholders per design D10)
