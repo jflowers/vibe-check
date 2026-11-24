@@ -9,7 +9,7 @@ import (
 	"github.com/zero-dot-force/vibe-check/metrics"
 )
 
-// Cycle derivation tests — openspec/changes/ripwire-adapter task 4.4.
+// Cycle derivation tests — openspec/changes/archive/2026-11-24-ripwire-adapter task 4.4.
 //
 // They pin the Tarjan SCC derivation over directory-module edges, the
 // canonical lexicographic ordering, the corroboration against ripwire's
@@ -52,7 +52,7 @@ func TestDeriveCycles_RecordedPython(t *testing.T) {
 
 // TestDeriveCycles_RingNeedsMemberEdges pins that the ring cycle closes
 // only through the wide-form member edge ring_a → ring_b
-// (openspec/changes/wide-form-cycle-edges), and the rel cycle only through
+// (openspec/changes/archive/2026-11-24-wide-form-cycle-edges), and the rel cycle only through
 // the relative member edge rel_b → rel_a (openspec/changes/
 // relative-import-edges): mapped without the member-import light parse,
 // the include-target edges alone are acyclic across both pairs and only

@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-// Python abstractness light-parse tests — openspec/changes/ripwire-adapter
+// Python abstractness light-parse tests — openspec/changes/archive/2026-11-24-ripwire-adapter
 // task 5.1. They pin design D8: the abc.ABC class counts in both
 // AbstractTypes and ExportedTypes, concrete classes only in ExportedTypes,
 // underscore classes in neither, and pruned denylist directories nowhere.

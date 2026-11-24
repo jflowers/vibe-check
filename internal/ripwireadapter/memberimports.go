@@ -17,7 +17,7 @@ import (
 // target Base alone, dropping Name; the member-import light parse
 // recovers Name so a wide-form subpackage import (`from pkg import
 // subpkg`) can contribute its directory edge to cycle derivation
-// (openspec/changes/wide-form-cycle-edges design D2). Relative bases
+// (openspec/changes/archive/2026-11-24-wide-form-cycle-edges design D2). Relative bases
 // (`from .. import sub`) are kept too (openspec/changes/
 // relative-import-edges design D3).
 type memberImport struct {

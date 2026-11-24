@@ -1,6 +1,6 @@
 package ripwireadapter
 
-// Fake-ripwire harness tests — openspec/changes/ripwire-adapter task 1.3.
+// Fake-ripwire harness tests — openspec/changes/archive/2026-11-24-ripwire-adapter task 1.3.
 //
 // These tests install the committed testdata/fake-ripwire script on PATH
 // and drive it through the same subprocess shape the production runner

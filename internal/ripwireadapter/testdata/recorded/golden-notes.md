@@ -11,13 +11,13 @@
 > produced by `metrics.Compute*` in a scratch program outside the
 > repository and the result validated with `metrics.Validate`.
 >
-> Revised again by `openspec/changes/wide-form-cycle-edges` task 2.3: the
+> Revised again by `openspec/changes/archive/2026-11-24-wide-form-cycle-edges` task 2.3: the
 > Python recordings re-captured with the same 0.7.0 release for the
 > `ring_a`/`ring_b` fixture packages (two new modules, `fixturepy` Ca 1 → 2,
 > a second cycle closed only by a wide-form member edge). TypeScript is
 > unchanged.
 >
-> Revised again by `openspec/changes/relative-import-edges` task 3.3: the
+> Revised again by `openspec/changes/archive/2026-11-24-relative-import-edges` task 3.3: the
 > Python recordings re-captured with the same 0.7.0 release for the
 > `rel_a`/`rel_b` fixture packages (two new modules, `fixturepy` Ca 2 → 3, a
 > third cycle closed only through relative imports). TypeScript is

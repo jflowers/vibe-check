@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-// Crawl-scope tests — openspec/changes/ripwire-adapter task 3.1.
+// Crawl-scope tests — openspec/changes/archive/2026-11-24-ripwire-adapter task 3.1.
 //
 // They pin the root-resolution rules of design decision D9 (Python
 // src-layout vs flat, TypeScript manifest directories) and the argument

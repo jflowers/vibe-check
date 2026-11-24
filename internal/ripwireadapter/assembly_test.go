@@ -12,7 +12,7 @@ import (
 	"github.com/zero-dot-force/vibe-check/metrics"
 )
 
-// Analyze assembly tests — openspec/changes/ripwire-adapter task 6.2.
+// Analyze assembly tests — openspec/changes/archive/2026-11-24-ripwire-adapter task 6.2.
 // The assembled graphs for both fixtures must match the hand-computed
 // goldens (modules, cycles, warning codes, status), pass
 // metrics.Validate, and carry the source-tool provenance fields.

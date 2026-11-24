@@ -1,4 +1,4 @@
-// Adapter scaffold tests — openspec/changes/ripwire-adapter task 2.1.
+// Adapter scaffold tests — openspec/changes/archive/2026-11-24-ripwire-adapter task 2.1.
 //
 // They pin the ripwire-adapter spec's adapter-instance and per-language
 // capability gating scenarios for the production scaffold: the exact language

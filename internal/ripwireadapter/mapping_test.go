@@ -9,7 +9,7 @@ import (
 	"github.com/zero-dot-force/vibe-check/metrics"
 )
 
-// Directory-module mapping tests — openspec/changes/ripwire-adapter
+// Directory-module mapping tests — openspec/changes/archive/2026-11-24-ripwire-adapter
 // task 4.3, extended by openspec/changes/bump-ripwire-pin tasks 2.2 and
 // 3.1–3.2. They pin D4 identity, the authoritative Ca/Ce passthrough,
 // the deduplicated directory-pair edge set, Ce-only externals, the
@@ -117,7 +117,7 @@ func TestMapToModules_RecordedPython(t *testing.T) {
 	// wide-form-cycle-edges). Relative targets (rel_a's "..rel_b.api",
 	// rel_b's "..") resolve against the importing package and are not
 	// external; rel_b's member edge to rel_a comes from `from .. import
-	// rel_a` (openspec/changes/relative-import-edges). On this fixture
+	// rel_a` (openspec/changes/archive/2026-11-24-relative-import-edges). On this fixture
 	// every module's internal counters agree with its arch row.
 	want := map[string]mappedModule{
 		"fixturepy":                  {Identity: "fixturepy", Name: "fixturepy", Ca: 3, Ce: 0, Types: 5, Abstract: 0, InternalIn: 3, ExternalOut: 1},

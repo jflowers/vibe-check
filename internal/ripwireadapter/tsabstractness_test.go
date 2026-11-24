@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-// TypeScript abstractness tests — openspec/changes/ripwire-adapter task
+// TypeScript abstractness tests — openspec/changes/archive/2026-11-24-ripwire-adapter task
 // 6.1. They pin the interface-share counts against the hand-computed
 // golden (including the namespace-nested interface) and the bias
 // warning.

@@ -42,7 +42,7 @@ type mappedModule struct {
 	// universe (external dependencies): counted in Ce only, they add no
 	// module and no afferent coupling anywhere. A Python relative target
 	// (leading dot) is never external: it resolves to an edge or is
-	// unresolved (openspec/changes/relative-import-edges design D1).
+	// unresolved (openspec/changes/archive/2026-11-24-relative-import-edges design D1).
 	ExternalOut int
 	// CouplingFloor reports that ripwire marked the module zone="unknown":
 	// Ca and Ce are lower bounds, not exact counts (openspec/changes/
@@ -88,11 +88,11 @@ type moduleMapping struct {
 // recorded the same statement), a module directory B/n adds the member
 // edge F-module → B/n-module. --deps records only B, so without this
 // pass a cycle closed through a wide-form subpackage import is invisible
-// to cycle derivation (openspec/changes/wide-form-cycle-edges design D3).
+// to cycle derivation (openspec/changes/archive/2026-11-24-wide-form-cycle-edges design D3).
 // A relative base B (`from .. import n`) is resolved against F's directory
 // by relativeBaseDir, and the resulting directory joined with n must be
 // exactly a module directory; a base climbing above the crawl root adds
-// nothing (openspec/changes/relative-import-edges design D3).
+// nothing (openspec/changes/archive/2026-11-24-relative-import-edges design D3).
 // Member edges feed Edges and the Internal* counters only; Ca/Ce stay the
 // --arch values.
 //
@@ -299,7 +299,7 @@ func resolveTarget(language, sourceDir, target string, moduleByDir map[string]*m
 // name is never guessed. A target that climbs above the crawl root, is
 // malformed, or has no module prefix at or below its anchor is
 // unresolved. A relative import cannot reach a stdlib or third-party
-// module, so it is never external (openspec/changes/relative-import-edges
+// module, so it is never external (openspec/changes/archive/2026-11-24-relative-import-edges
 // design D1).
 func resolveRelativePython(sourceDir, target string, moduleByDir map[string]*mappedModule) targetResolution {
 	anchor, dir, ok := relativeBaseDir(sourceDir, target)

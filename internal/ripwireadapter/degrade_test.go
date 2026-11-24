@@ -9,7 +9,7 @@ import (
 	"github.com/zero-dot-force/vibe-check/metrics"
 )
 
-// Unparseable-file degradation tests — openspec/changes/ripwire-adapter
+// Unparseable-file degradation tests — openspec/changes/archive/2026-11-24-ripwire-adapter
 // task 5.3. An unreadable source file must not abort a scan: it produces
 // a parse-error warning naming the path, its metrics are zeroed, and the
 // any-warning rule forces partial status.

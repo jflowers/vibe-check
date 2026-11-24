@@ -15,7 +15,7 @@ import (
 	"github.com/zero-dot-force/vibe-check/metrics"
 )
 
-// CLI ripwire wiring tests — openspec/changes/ripwire-adapter tasks 7.2,
+// CLI ripwire wiring tests — openspec/changes/archive/2026-11-24-ripwire-adapter tasks 7.2,
 // 7.3, and 7.4. They prove adapter selection through the registry, the
 // absent-binary exit path, and that the Go analysis path is byte-stable
 // through the registry change without ripwire anywhere on PATH.
@@ -152,7 +152,7 @@ func TestRunAnalyze_AdapterSelection(t *testing.T) {
 		}
 		// cycle_a/cycle_b, ring_a/ring_b (closed only through a wide-form
 		// member edge), and rel_a/rel_b (closed only through relative
-		// imports; openspec/changes/relative-import-edges).
+		// imports; openspec/changes/archive/2026-11-24-relative-import-edges).
 		if len(result.Graph.Cycles) != 3 {
 			t.Errorf("cycles: got %v, want 3 (fixture graph)", result.Graph.Cycles)
 		}

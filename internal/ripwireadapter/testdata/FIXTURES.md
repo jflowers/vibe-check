@@ -1,7 +1,7 @@
 # Ripwire Adapter Test Fixtures
 
 Static-analysis fixtures for the ripwire adapter — task 1.1 of the
-`ripwire-adapter` OpenSpec change (`openspec/changes/ripwire-adapter/`;
+`ripwire-adapter` OpenSpec change (`openspec/changes/archive/2026-11-24-ripwire-adapter/`;
 rationale in design.md D8/D12).
 
 Properties shared by every fixture file:
@@ -31,10 +31,10 @@ Properties shared by every fixture file:
 | `python/src/fixturepy/cycle_b/api.py` | Defines `helper_b`, imported by cycle side A. |
 | `python/src/fixturepy/wide/__init__.py` | Package marker for the wide-form import scenario. |
 | `python/src/fixturepy/wide/consumer.py` | `from fixturepy import cycle_b` — wide-form from-import of a **subpackage** (ripwire#478 gap 1): resolves to an edge into `fixturepy/cycle_b`, not only `fixturepy/__init__.py`. |
-| `python/src/fixturepy/ring_a/__init__.py` | Ring side A: `from fixturepy import ring_b` — wide-form import of a subpackage; `--deps` records only `fixturepy`, so the A → B edge comes from the member-import light parse (openspec/changes/wide-form-cycle-edges). |
+| `python/src/fixturepy/ring_a/__init__.py` | Ring side A: `from fixturepy import ring_b` — wide-form import of a subpackage; `--deps` records only `fixturepy`, so the A → B edge comes from the member-import light parse (openspec/changes/archive/2026-11-24-wide-form-cycle-edges). |
 | `python/src/fixturepy/ring_a/api.py` | Defines `marker`, imported by ring side B. |
 | `python/src/fixturepy/ring_b/__init__.py` | Ring side B: `from fixturepy.ring_a.api import marker` (name-resolved edge B → A). Its docstring quotes the ring A import, exercising the light parse's string blanking. |
-| `python/src/fixturepy/rel_a/__init__.py` | Relative side A: `from ..rel_b.api import token` — a relative **base** that `--deps` records verbatim as `..rel_b.api`; resolved against the importing package to the edge A → B (openspec/changes/relative-import-edges). |
+| `python/src/fixturepy/rel_a/__init__.py` | Relative side A: `from ..rel_b.api import token` — a relative **base** that `--deps` records verbatim as `..rel_b.api`; resolved against the importing package to the edge A → B (openspec/changes/archive/2026-11-24-relative-import-edges). |
 | `python/src/fixturepy/rel_b/__init__.py` | Relative side B: `from .. import rel_a` — a relative **member** of the bare base `..`; `--deps` records only `..`, so the B → A edge comes from the member-import light parse. |
 | `python/src/fixturepy/rel_b/api.py` | Defines `token`, imported by relative side A. |
 | `python/src/fixturepy/alias/__init__.py` | Package marker for the aliased-import scenario. |

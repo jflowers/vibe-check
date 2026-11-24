@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-// Denylist pre-check tests — openspec/changes/ripwire-adapter task 3.2,
+// Denylist pre-check tests — openspec/changes/archive/2026-11-24-ripwire-adapter task 3.2,
 // extended by openspec/changes/bump-ripwire-pin task 4.1.
 //
 // They pin the mirror of ripwire's crawl denylist: source-bearing

@@ -12,7 +12,7 @@ import (
 	"testing"
 )
 
-// Subprocess-runner tests — openspec/changes/ripwire-adapter task 2.3.
+// Subprocess-runner tests — openspec/changes/archive/2026-11-24-ripwire-adapter task 2.3.
 //
 // They pin the runner's hygiene contract: sanitized environment (no host
 // credentials reach the subprocess), working directory at the crawl root,

@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-// Relative-import resolution tests — openspec/changes/relative-import-edges
+// Relative-import resolution tests — openspec/changes/archive/2026-11-24-relative-import-edges
 // tasks 1.2 and 2.3. They pin how a Python relative target or member base
 // (leading dot, recorded verbatim by ripwire's --deps) resolves against the
 // importing file's package: the anchor climb, the no-ancestor-guess rule,

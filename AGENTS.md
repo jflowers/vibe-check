@@ -399,9 +399,10 @@ metrics/report/     # Deterministic report engine (Layer 1 subpackage of metrics
   report.go         # Grade engine: A–F thresholds, aggregates, recommendation rules
   reportmodel.go    # Report model for --json output (aggregates, grades, recommendations)
 openspec/           # OpenSpec change artifacts (proposals, specs, tasks)
-  changes/          # Individual change directories
+  changes/          # In-flight change directories
+    archive/        # Shipped changes (YYYY-MM-DD-<name>/), moved by `openspec archive`
   schemas/          # Spec validation schemas
-  specs/            # Spec templates
+  specs/            # Main specs: current requirements per capability, built by archiving changes
 ```
 
 ## Architecture
@@ -452,7 +453,7 @@ RFC phasing status:
 - **P0 effective**: Go adapter and CLI (complete — `internal/goadapter/`
   and `cmd/vibe-check/`; classified as P1 in RFC but required for MVP)
 - **P2**: Python and TypeScript adapters delivered via the ripwire-backed
-  hybrid (openspec/changes/ripwire-adapter); cognitive complexity, branch
+  hybrid (openspec/changes/archive/2026-11-24-ripwire-adapter); cognitive complexity, branch
   coverage, and architectural drift tracking remain
 - **P3**: TS/JS adapter, SBOM integration, mutation testing hooks
 
