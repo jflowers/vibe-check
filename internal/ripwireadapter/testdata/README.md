@@ -7,12 +7,12 @@ the hand-computed `ModuleGraph` goldens (`recorded/golden-notes.md`). The
 fixtures themselves are documented in [`FIXTURES.md`](FIXTURES.md).
 
 History: first captured from ripwire 0.6.9 @ `bedc0cd` by
-`openspec/changes/ripwire-adapter` (tasks 1.2–1.4); re-captured for the pin
+`openspec/changes/archive/2026-11-24-ripwire-adapter` (tasks 1.2–1.4); re-captured for the pin
 move by `openspec/changes/bump-ripwire-pin` (tasks 1.1–1.4, 7.1–7.3); the
 Python recordings (`python`, `python-mixed`, derived `python-zero-edge`)
 re-captured for the `ring_a`/`ring_b` fixture by
-`openspec/changes/wide-form-cycle-edges` (task 2.2), and again for the
-`rel_a`/`rel_b` fixture by `openspec/changes/relative-import-edges`
+`openspec/changes/archive/2026-11-24-wide-form-cycle-edges` (task 2.2), and again for the
+`rel_a`/`rel_b` fixture by `openspec/changes/archive/2026-11-24-relative-import-edges`
 (task 3.2) with the same 0.7.0 release binary.
 
 ## Layout
@@ -219,7 +219,7 @@ Results — every recording byte-identical across the two runs:
   `<inc t=".."/>`; ripwire's `--arch` resolves both (and the `rel_a` member
   of `from .. import rel_a`), so `fixturepy/rel_b` reads `ce="2"`. The
   adapter resolves the targets against the importing package and recovers
-  the member with its light parse (`openspec/changes/relative-import-edges`);
+  the member with its light parse (`openspec/changes/archive/2026-11-24-relative-import-edges`);
   together they are the only edges closing the `rel_a`/`rel_b` cycle.
 - **Python `deps.xml` has no `<cycles>` element.** The fixture's import
   cycle resolves file-level as `cycle_a/__init__.py → cycle_b/api.py` and

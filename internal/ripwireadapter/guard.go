@@ -21,7 +21,7 @@ const warningZeroCouplingGuard = "zero-coupling-guard"
 // structurally valid --deps XML; the resulting ModuleGraph, however, is all
 // zeros: no dependency edges, every module fully disconnected. That graph
 // looks valid while carrying no information, so the adapter must refuse to
-// present it as a complete result (openspec/changes/ripwire-adapter
+// present it as a complete result (openspec/changes/archive/2026-11-24-ripwire-adapter
 // design.md D9; the spec's zero-coupling result guard requirement).
 //
 // The guard is a pure predicate over the two numbers that graph assembly

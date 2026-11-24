@@ -12,7 +12,7 @@ import (
 	"github.com/zero-dot-force/vibe-check/metrics"
 )
 
-// Full-pipeline integration tests — openspec/changes/ripwire-adapter
+// Full-pipeline integration tests — openspec/changes/archive/2026-11-24-ripwire-adapter
 // tasks 8.1, 8.2, and 8.3. Task 8.1 runs the entire Analyze pipeline
 // through the fake ripwire on PATH and asserts specific metric values
 // against the hand-computed goldens. Task 8.2 proves two-run byte
@@ -91,7 +91,7 @@ func TestIntegration_PythonFixturePipeline(t *testing.T) {
 	}
 
 	// The ring pair closes only through the wide-form member edge
-	// ring_a → ring_b (openspec/changes/wide-form-cycle-edges); the rel
+	// ring_a → ring_b (openspec/changes/archive/2026-11-24-wide-form-cycle-edges); the rel
 	// pair only through relative imports (openspec/changes/
 	// relative-import-edges).
 	wantCycles := []metrics.Cycle{

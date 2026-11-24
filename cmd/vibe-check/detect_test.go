@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-// detectLanguage tests — openspec/changes/ripwire-adapter task 7.1.
+// detectLanguage tests — openspec/changes/archive/2026-11-24-ripwire-adapter task 7.1.
 // Table-driven over every marker, the census majority, the tie default,
 // and the markerless fallback to the existing Go path.
 

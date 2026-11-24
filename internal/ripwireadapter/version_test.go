@@ -8,7 +8,7 @@ import (
 	"testing"
 )
 
-// Version-pin tests — openspec/changes/ripwire-adapter task 2.2, revised by
+// Version-pin tests — openspec/changes/archive/2026-11-24-ripwire-adapter task 2.2, revised by
 // openspec/changes/bump-ripwire-pin tasks 6.2–6.3 to reference the pin
 // constants instead of literal versions.
 //

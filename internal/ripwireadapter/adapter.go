@@ -21,7 +21,7 @@ var _ metrics.Adapter = (*Adapter)(nil)
 // the package documentation for the per-metric sourcing matrix.
 //
 // One struct type parameterized by language is used rather than two distinct
-// types (openspec/changes/ripwire-adapter design.md D1): the languages share
+// types (openspec/changes/archive/2026-11-24-ripwire-adapter design.md D1): the languages share
 // ~90% of the pipeline (discovery, version pin, invocation, parsing,
 // mapping, cycle detection, warnings) and differ only in language identifier,
 // crawl-root rules, abstractness source, and light-parse dialect —

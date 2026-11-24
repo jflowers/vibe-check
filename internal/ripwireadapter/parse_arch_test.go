@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-// --arch metrics-table parser tests — openspec/changes/ripwire-adapter
+// --arch metrics-table parser tests — openspec/changes/archive/2026-11-24-ripwire-adapter
 // task 4.1, revised by openspec/changes/bump-ripwire-pin task 2.1.
 //
 // They pin the parser against the recorded outputs of the pinned ripwire

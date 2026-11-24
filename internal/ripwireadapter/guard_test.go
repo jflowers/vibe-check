@@ -8,7 +8,7 @@ import (
 	"testing"
 )
 
-// Zero-coupling guard tests — openspec/changes/ripwire-adapter task 3.3.
+// Zero-coupling guard tests — openspec/changes/archive/2026-11-24-ripwire-adapter task 3.3.
 //
 // They pin the guard's decision table: zero dependency edges over a
 // non-empty source corpus fires a single "zero-coupling-guard" warning

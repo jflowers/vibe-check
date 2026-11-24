@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-// --deps and cc.json parser tests — openspec/changes/ripwire-adapter
+// --deps and cc.json parser tests — openspec/changes/archive/2026-11-24-ripwire-adapter
 // task 4.2. They pin the parsers against the recorded outputs of the
 // pinned ripwire release: exact edge sets, fan-in/out values, cycles listing, and paging
 // attributes.

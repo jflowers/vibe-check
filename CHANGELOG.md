@@ -33,7 +33,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   output through the new adapter registry, pinned by a regression golden.
   Without ripwire on `PATH`, Python and TypeScript analysis exits `2`
   with install guidance; Go analysis needs no ripwire.
-  Spec: `openspec/changes/ripwire-adapter/specs/ripwire-adapter/spec.md`
+  Spec: `openspec/changes/archive/2026-11-24-ripwire-adapter/specs/ripwire-adapter/spec.md`
 - Python/TypeScript graphs carry a `coupling-floor` warning when ripwire
   marks a module `zone="unknown"` (it holds a file in a language ripwire
   resolves almost no imports for): that module's Ca/Ce are lower bounds,
@@ -62,7 +62,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (already-deployed assets remain on disk), and an I/O failure mid-write
   reports that the file may be partially written and restorable from version
   control.
-  Spec: `openspec/changes/init-registers-divisor-entropy/specs/init-uf-registration/spec.md`
+  Spec: `openspec/changes/archive/2026-11-24-init-registers-divisor-entropy/specs/init-uf-registration/spec.md`
 - Per-package coverage ratchet: `cmd/coverage-ratchet` (backed by the new
   `internal/coverratchet` engine) parses a go test coverage profile, computes
   statement-weighted per-package coverage truncated to one decimal, and
@@ -89,7 +89,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   review-round test additions raised their measured coverage — equivalent
   to `--update` for those packages alone, since a blanket update would
   also have raised `metrics` past its 82.0 accommodation.
-  Spec: `openspec/changes/ci-coverage-ratchet-floors/specs/ci-coverage-ratchet/spec.md`
+  Spec: `openspec/changes/archive/2026-11-24-ci-coverage-ratchet-floors/specs/ci-coverage-ratchet/spec.md`
 - `vibe-check init --ci` additionally scaffolds the structural-gate caller
   workflow into the target's `.github/workflows/vibe-check-structural-gate.yaml`,
   rendered from a template embedded alongside the existing agent and command
@@ -109,7 +109,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   still gets the workflow plus an advisory notice; the manifest table is a seam
   for the future Python/TypeScript adapters. Plain `init` without `--ci` is
   unchanged: no `.github/` tree, byte-identical output.
-  Spec: `openspec/changes/init-scaffolds-structural-gate-caller/specs/init-ci-scaffolding/spec.md`
+  Spec: `openspec/changes/archive/2026-11-24-init-scaffolds-structural-gate-caller/specs/init-ci-scaffolding/spec.md`
 
 ### Changed
 
@@ -141,7 +141,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   protection and Actions history are unaffected). The new name matches the
   filename `vibe-check init --ci` scaffolds in consumer repositories, making
   this repository's own gate the reference deployment of the emitted caller.
-  Spec: `openspec/changes/init-scaffolds-structural-gate-caller/specs/init-ci-scaffolding/spec.md`
+  Spec: `openspec/changes/archive/2026-11-24-init-scaffolds-structural-gate-caller/specs/init-ci-scaffolding/spec.md`
 
 ### Fixed
 
@@ -154,7 +154,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Ca/Ce/I/A/D are unchanged, but `Cycles` can gain a cycle that already
   existed in the code, so a `diff` whose base predates this change can
   report it as new.
-  Spec: `openspec/changes/wide-form-cycle-edges/specs/wide-form-cycle-edges/spec.md`
+  Spec: `openspec/changes/archive/2026-11-24-wide-form-cycle-edges/specs/wide-form-cycle-edges/spec.md`
 - Python cycle detection no longer misses cycles closed through relative
   imports (`from ..pkg.api import f`, `from .. import sub`). ripwire's
   `--deps` records them as written (`..pkg.api`, `..`), and the adapter
@@ -166,7 +166,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `sub`. Ca/Ce/I/A/D are unchanged, but `Cycles` can gain a cycle that
   already existed in the code, so a `diff` whose base predates this change
   can report it as new.
-  Spec: `openspec/changes/relative-import-edges/specs/relative-import-edges/spec.md`
+  Spec: `openspec/changes/archive/2026-11-24-relative-import-edges/specs/relative-import-edges/spec.md`
 
 ## [0.3.0] - 2026-10-28
 
@@ -191,7 +191,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   consuming the reusable workflow on pull requests as an end-to-end smoke
   test (the build-from-source self-gate is unchanged), and the README gains
   a "CI integration" section documenting the consumer contract.
-  Spec: `openspec/changes/reusable-structural-gate/specs/reusable-structural-gate/spec.md`
+  Spec: `openspec/changes/archive/2026-11-24-reusable-structural-gate/specs/reusable-structural-gate/spec.md`
 
 ## [0.2.0] - 2026-10-27
 
@@ -227,7 +227,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   is fixed (`analyze` takes a directory, not package patterns).
   `.opencode/references/vibe-check-example-report.md` is regenerated from the
   committed fictional fixture with the new renderer.
-  Spec: `openspec/changes/deterministic-report/`
+  Spec: `openspec/changes/archive/2026-11-24-deterministic-report/`
 - Revamped `vibe-check-reporter` agent output format: emoji-structured reports
   with closed vocabulary (🏗️📊🔗🧩🔄📋📖🏥🟢🟡🔴⚠️), full metric names
   (Instability, Abstractness, Distance, LCOM4), legend block with metrics guide
@@ -250,7 +250,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   score in [0, 1]. A new `totalLines` field on `ModuleResult` records the total
   source lines per module for percentage computation. The ModuleGraph schema is
   bumped to `1.3` (additive; `1.0`, `1.1`, and `1.2` remain valid).
-  Spec: `openspec/changes/add-code-duplication-detection/`
+  Spec: `openspec/changes/archive/2026-11-24-add-code-duplication-detection/`
 
 - Release automation via GoReleaser: cross-platform pre-built binaries for
   linux/darwin/windows × amd64/arm64 are published to GitHub Releases via a
@@ -270,7 +270,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `.github/workflows/structural-gate.yml` workflow runs `analyze` on both the PR
   head and base (skipping forked PRs) and then `diff --gate` on the
   `pull_request` event.
-  Spec: `openspec/changes/ci-regression-gate/`
+  Spec: `openspec/changes/archive/2026-11-24-ci-regression-gate/`
 - `vibe-check analyze` now emits a top-level `provenance` object in its JSON
   output recording how the graph was produced: `producer` (`"vibe-check"`),
   `version` (the tool's semantic version), `generatedAt` (an RFC 3339 UTC
@@ -278,7 +278,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   flag omits it for byte-reproducible output. The ModuleGraph schema is bumped
   to `1.2` (additive; `1.0` and `1.1` remain valid), and `ComputeDelta`/
   `vibe-check diff` ignore provenance entirely.
-  Spec: `openspec/changes/emit-provenance-metadata/`
+  Spec: `openspec/changes/archive/2026-11-24-emit-provenance-metadata/`
 - `vibe-check diff --json` and `vibe-check init --json` now emit a top-level
   `provenance` object (`producer` `"vibe-check"`, `version`, and `generatedAt`)
   mirroring `analyze`, sourced from a shared `cmd/vibe-check/provenance.go`
@@ -286,7 +286,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   gains a `--no-provenance` flag to omit the envelope for byte-reproducible
   output. The `analyze` command was refactored to source producer/version/
   generatedAt from the same shared helper (its `input` sub-object is unchanged).
-  Spec: `openspec/changes/add-diff-init-provenance/`
+  Spec: `openspec/changes/archive/2026-11-24-add-diff-init-provenance/`
 - Agent-design convention pack (`.opencode/uf/packs/agent-design.md`) defining
   10 structural quality rules (AD-001 through AD-010) covering coupling,
   cohesion, complexity, naming, file size, duplication, contract coverage, and
@@ -297,7 +297,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   10 agent-design rules (AD-001–AD-010) covering rule reference table,
   enforcement tool matrix, override mechanism, forward references, and LCOM4
   semantics.
-  Spec: `openspec/changes/doc-agent-design-pack/specs/agent-design-reference/`
+  Spec: `openspec/changes/archive/2026-11-24-doc-agent-design-pack/specs/agent-design-reference/`
 - `vibe-check diff <base.json> <pr.json>` compares two ModuleGraph JSON
   snapshots and reports the structural-entropy delta (per-module Ca, Ce,
   instability, abstractness, distance, and LCOM deltas), new and resolved
@@ -326,17 +326,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   summary (traffic-light health indicator), detailed (per-package
   breakdown), and trending (longitudinal metric comparison via Dewey
   snapshots).
-  Spec: `openspec/changes/vibe-check-command-and-reporter/`
+  Spec: `openspec/changes/archive/2026-11-24-vibe-check-command-and-reporter/`
 - `vibe-check-reporter` agent asset (deployed by `vibe-check init` to
   `.opencode/agents/vibe-check-reporter.md`): interprets Martin coupling
   metrics in natural language, runs `vibe-check analyze` to gather data,
   and stores metric snapshots in Dewey for trend tracking.
-  Spec: `openspec/changes/vibe-check-command-and-reporter/`
+  Spec: `openspec/changes/archive/2026-11-24-vibe-check-command-and-reporter/`
 - `vibe-check init` now deploys command assets to `.opencode/commands/`
   alongside agent assets in `.opencode/agents/`. The scaffold system
   uses a `deployCategory` helper to iterate both asset categories with
   the same symlink-safe, containment-checked pattern.
-  Spec: `openspec/changes/vibe-check-command-and-reporter/`
+  Spec: `openspec/changes/archive/2026-11-24-vibe-check-command-and-reporter/`
 - `vibe-check analyze --output <file>` (`-o`) writes the ModuleGraph JSON
   to a file instead of stdout (stdout remains the default; a failed write
   exits with code 2 and a stderr diagnostic without emitting partial
@@ -358,7 +358,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   policies prune daily snapshots > 90 days and weekly-Sunday snapshots
   > 1 year. The `/vibe-check trending` mode is extended from single-
   baseline to multi-snapshot time-series when ≥2 snapshots exist.
-  Spec: `openspec/changes/architectural-drift-tracking/`
+  Spec: `openspec/changes/archive/2026-11-24-architectural-drift-tracking/`
 
 ### Changed
 
@@ -372,7 +372,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   added return-value assertions for `goadapter.Analyze()`, and added
   explicit `(*limitedBuffer).String()` content assertions. Per-function
   contract coverage rose from 94.4% to 98.2% (no function at 0%).
-  Spec: `openspec/changes/contract-coverage-gap/`
+  Spec: `openspec/changes/archive/2026-11-24-contract-coverage-gap/`
 - Enhanced GoDoc annotations on `ExternalAdapter.Analyze`,
   `ExternalAdapter.Capabilities`, `Registry.Register`, `RunAnalyze`,
   `RunDiff`, `RunInit`, and `(*limitedBuffer).Write` to explicitly

@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-// LCOM4 light-parse tests — openspec/changes/ripwire-adapter task 5.2.
+// LCOM4 light-parse tests — openspec/changes/archive/2026-11-24-ripwire-adapter task 5.2.
 // They pin the golden fixture values (fixturepy LCOM 6, src LCOM 2) and
 // the union-find component counting on synthetic shapes.
 
