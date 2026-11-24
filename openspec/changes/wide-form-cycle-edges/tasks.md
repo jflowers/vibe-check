@@ -35,7 +35,7 @@
 - [x] 5.1 CI parity: run every command in `.github/workflows/ci.yml` locally (build, `go test -race -count=1 -coverprofile=coverage.out ./...`, coverage ratchet, vet, golangci-lint, plus any others listed there) with ripwire removed from PATH. Verify: all pass. Coverage floors are not lowered, and the `ripwireadapter` floor is raised with `--update` only if it rises.
 - [x] 5.2 Run `/uf.review-council`. Resolve every REQUEST CHANGES. Verify: all reviewers APPROVE.
 - [x] 5.3 Push `opsx/wide-form-cycle-edges` and open a draft PR stacked on #96, stating that it cannot merge before #96. Verify: PR open.
-- [ ] 5.4 After #96 merges, rebase onto `main`. If #96's Phase B re-captured with a different binary, repeat 2.2–2.3 and 5.1. Mark the PR ready.
+- [ ] 5.4 After #96 merges, rebase onto `main`. If #96's Phase B re-captured with a different binary, repeat 2.2–2.3 and 5.1. Mark the PR ready. Progress: rebased onto `main` @ 58a6f3a after #96 merged; Phase B used the 0.7.0 release, so 2.2–2.3 were repeated with that binary (two-run `cmp` identical) during the rebase, and 5.1 re-run. Remaining: mark the PR ready.
 
 ## 6. Follow-up (not this change)
 
