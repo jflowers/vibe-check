@@ -39,4 +39,4 @@
 
 ## 6. Follow-up (not this change)
 
-- [ ] 6.1 Propose a separate OpenSpec change for relative-import edge resolution (`from . import x`, `from ..b.api import f` are currently classified external). Verify: the change directory or issue exists and is linked from this change's PR.
+- [x] 6.1 Propose a separate OpenSpec change for relative-import edge resolution (`from . import x`, `from ..b.api import f` are currently classified external). Verify: the change directory or issue exists and is linked from this change's PR. Done: `openspec/changes/relative-import-edges`, draft PR #100 (stacked on this PR).
