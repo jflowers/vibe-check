@@ -34,4 +34,4 @@
 - [x] 5.1 CI parity: run every command in `.github/workflows/ci.yml` locally with ripwire off PATH. Verify: all pass, and coverage floors are only raised.
 - [x] 5.2 Run the review council (Adversary, Architect, Guard, Tester). Resolve every REQUEST CHANGES. Verify: all reviewers APPROVE.
 - [x] 5.3 Push `opsx/relative-import-edges` and open a draft PR based on `opsx/wide-form-cycle-edges`, stating that it cannot merge before #98 and #96. Verify: the PR is open. Opened: #100.
-- [ ] 5.4 After #98 and #96 merge, rebase onto `main`. If Phase B re-captured with a different binary, repeat 3.2–3.3 and 5.1. Mark the PR ready.
+- [ ] 5.4 After #98 and #96 merge, rebase onto `main`. If Phase B re-captured with a different binary, repeat 3.2–3.3 and 5.1. Mark the PR ready. Progress: rebased onto `opsx/wide-form-cycle-edges` @ 3efdc35 (#98 rebased onto `main` @ 58a6f3a after #96 merged). Phase B used the 0.7.0 release, so 3.2–3.3 were repeated with that binary (two-run `cmp` identical) during the rebase, and 5.1 re-run. Remaining: rebase onto `main` after #98 merges, then mark the PR ready.
