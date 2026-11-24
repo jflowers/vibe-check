@@ -171,7 +171,11 @@ func (a *Adapter) Analyze(ctx context.Context, projectPath string) (*metrics.Mod
 		return nil, fmt.Errorf("ripwire adapter: %w", err)
 	}
 	guardWarnings := zeroCouplingGuard(len(mapping.Edges), sourceFileCount)
-	denylistWarnings, err := detectDenylistPruned(crawlRoot, table.PrunedPackages, table.PrunedPackageCount)
+	indexedDirs := make([]string, 0, len(table.Rows))
+	for _, row := range table.Rows {
+		indexedDirs = append(indexedDirs, row.Path)
+	}
+	denylistWarnings, err := detectDenylistPruned(crawlRoot, indexedDirs, table.PrunedPackages, table.PrunedPackageCount)
 	if err != nil {
 		return nil, fmt.Errorf("ripwire adapter: denylist pre-check of %s: %w", projectPath, err)
 	}

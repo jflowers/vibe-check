@@ -1,17 +1,20 @@
 # Error-budget measurement results
 
-Method and commands: [`README.md`](README.md). Measured 2026-11-19.
+Method and commands: [`README.md`](README.md). Phase A measured 2026-11-19;
+Phase B (task 7.4) re-measured against the published release 2026-11-24.
 
-> **Phase A.** "main" is a Release source build of redhat-et/ripwire `main` @
-> `1edb6fd6a` (contains #533; reports `0.6.10-dev.65+g1edb6fd6a`). Task 7.4
-> re-runs every row against the published release and updates this file and
-> `budget.go` if any figure moves.
+> **Phase A** "main" is a Release source build of redhat-et/ripwire `main` @
+> `1edb6fd6a` (contains #533; reports `0.6.10-dev.65+g1edb6fd6a`). **Phase B**
+> "0.7.0" is the published release (upstream skipped 0.6.11), the adopted
+> pin. Every 0.7.0 figure equals its Phase A "main" figure, so `budget.go`
+> is unchanged.
 
 | Binary | `--version` |
 |--------|-------------|
 | 0.6.9 (baseline, previous pin) | `ripwire 0.6.9 (Release, AppleClang 21.0.0.21000101, emit=std::print, built_from=bedc0cdcf)` |
 | 0.6.10 (reference: gaps 2–4, not gap 1) | `ripwire 0.6.10 (Release, AppleClang 21.0.0.21000101, emit=std::print, built_from=ac869640e)` |
 | main (Phase A pin candidate) | `ripwire 0.6.10-dev.65+g1edb6fd6a (Release, AppleClang 21.0.0.21000334, emit=std::print, built_from=1edb6fd6a)` |
+| 0.7.0 (adopted pin) | `ripwire 0.7.0 (Release, AppleClang 21.0.0.21000101, emit=std::print, act=on, rows=lines, built_from=5a3df049e)` |
 
 ## Python
 
@@ -24,9 +27,16 @@ module). File-level figures are count-based lower bounds (see
 | pip `src/` | 0.6.9 | 1,792 | 53 | 79.2% (0.26) | 77.4% (0.34) | 4.80% | 0.78% |
 | pip `src/` | 0.6.10 | 1,792 | 53 | 81.1% (0.25) | 81.1% (0.25) | 4.91% | 0.00% |
 | pip `src/` | **main** | 1,792 | 53 | **100.0% (0.00)** | **100.0% (0.00)** | **0.11%** | **0.00%** |
+| pip `src/` | **0.7.0** † | 1,819 | 54 | **100.0% (0.00)** | **100.0% (0.00)** | **0.11%** | **0.00%** |
 | django | 0.6.9 | 10,200 | 673 | 93.9% (0.61) | 59.0% (0.60) | 14.18% | 0.11% |
 | django | 0.6.10 | 10,200 | 673 | 96.6% (0.55) | 60.6% (0.55) | 13.72% | 0.01% |
 | django | **main** | 10,200 | 673 | **100.0% (0.00)** | **100.0% (0.00)** | **0.00%** | **0.01%** |
+| django | **0.7.0** † | 10,200 | 673 | **100.0% (0.00)** | **100.0% (0.00)** | **0.00%** | **0.01%** |
+
+† Measured with `--tracked-build`: 0.7.0 indexes a `build/` directory whose
+files git tracks, so pip's `src/pip/_internal/operations/build/` (6 files)
+joins both sides — one more directory and 27 more ground-truth edges. django
+has no tracked `build/`; its universe is unchanged.
 
 Residue on main, all outside directory-grain coupling:
 
@@ -53,13 +63,17 @@ is the 0.6.9 row above, measured with this harness.
 | 0.6.9 | 8,579 | 5,973 | 14 | 0.16% | 0.23% |
 | 0.6.10 | 8,579 | 5,973 | 14 | 0.16% | 0.23% |
 | **main** | 8,579 | 5,973 | 14 | **0.16%** | 0.23% |
+| **0.7.0** | 8,581 | 5,973 | 14 | **0.16%** | 0.23% |
 
-Unchanged across all three binaries; matches the spike's 14 / 8,529 (0.16%).
+Unchanged across all four binaries; matches the spike's 14 / 8,529 (0.16%).
+0.7.0's two extra rows come from tracked `build/` test fixtures
+(`test/function/samples/close-bundle-error/build/`), which it now indexes.
 
 ## Gate (design D6)
 
 Every main figure is equal to or better than its 0.6.9 baseline on the same
-target with the same harness — **gate passes**.
+target with the same harness — **gate passes**. Every 0.7.0 figure equals
+the main figure — the gate still holds (task 7.4).
 
 Two ground-truth conventions were corrected during the measurement, each
 validated on the fixture before re-running every binary:

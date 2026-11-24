@@ -117,8 +117,10 @@ func TestAnalyze_ZeroCouplingGuardFires(t *testing.T) {
 		t.Fatalf("warnings %v: want %q present", codes, warningZeroCouplingGuard)
 	}
 	// The census walks testdata/python/src, which holds 16 source files
-	// (including 2 under the denylisted operations/build directory: the
-	// census deliberately over-counts rather than disengage the guard).
+	// (including 2 under operations/build, which the pinned release indexes
+	// because git tracks it; the census counts denylist-named directories
+	// regardless, deliberately over-counting rather than disengaging the
+	// guard).
 	if !strings.Contains(guard.Message, "0 dependency edges") || !strings.Contains(guard.Message, "16 source files") {
 		t.Errorf("guard message: got %q, want it to name both counts (0 edges, 16 files)", guard.Message)
 	}
@@ -205,13 +207,14 @@ func TestAnalyze_StructuralInvariants(t *testing.T) {
 			}
 			wantLines := map[string]map[string]int{
 				languagePython: {
-					"fixturepy":            95,
-					"fixturepy.alias":      9,
-					"fixturepy.collide":    15,
-					"fixturepy.cycle_a":    16,
-					"fixturepy.cycle_b":    16,
-					"fixturepy.operations": 1,
-					"fixturepy.wide":       9,
+					"fixturepy":                  95,
+					"fixturepy.alias":            9,
+					"fixturepy.collide":          15,
+					"fixturepy.cycle_a":          16,
+					"fixturepy.cycle_b":          16,
+					"fixturepy.operations":       1,
+					"fixturepy.operations.build": 15,
+					"fixturepy.wide":             9,
 				},
 				languageTypeScript: {
 					".":           0,

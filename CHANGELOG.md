@@ -14,7 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `tsconfig.json` markers, with a `.py` vs `.ts`/`.tsx` census fallback that
   defaults to Go) and routes Python and TypeScript projects to a new
   ripwire-backed adapter (`internal/ripwireadapter`). Coupling data comes
-  from a pinned external `ripwire` `<RELEASE>` binary —
+  from a pinned external `ripwire` 0.7.0 binary —
   resolved on `PATH` and validated fail-closed at analyze time —
   hybridized with vibe-check's own light language parse for Python
   abstractness (ABC / ABCMeta / Protocol class detection) and LCOM4
@@ -39,7 +39,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   resolves almost no imports for): that module's Ca/Ce are lower bounds,
   and the warning names the modules and languages. The `denylist-pruned`
   warning now also lists packages ripwire itself reports as pruned, and
-  states ripwire's total when its listing is partial.
+  states ripwire's total when its listing is partial; it no longer lists a
+  git-tracked `build/` directory, which ripwire 0.7.0 indexes as source.
   Spec: `openspec/changes/bump-ripwire-pin/specs/ripwire-release-pin/spec.md`
 - `vibe-check init` now registers the `divisor-entropy` reviewer into the
   project's Unbound Force policy files after deploying assets. It inserts a
@@ -112,8 +113,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- The ripwire adapter's validated pin moved from ripwire 0.6.9 to
-  `<RELEASE>`, the first release carrying all four upstream Python
+- The ripwire adapter's validated pin moved from ripwire 0.6.9 to 0.7.0
+  (built from `5a3df04`), the first release carrying all four upstream Python
   import-resolution fixes (redhat-et/ripwire#478: aliased `import a.b as c`,
   wide-form `from pkg import mod`, stdlib-name collisions, and denylist
   disclosure). Python coupling is markedly more accurate — directory Ca/Ce
@@ -126,7 +127,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   new ones — coupling shifts reflect better import resolution, not code
   changes — so re-take a `diff` base snapshot after upgrading
   (`provenance.input.sourceToolVersion` records which ripwire produced a
-  snapshot). The `--arch` parser now requires only the attributes the
+  snapshot). ripwire 0.7.0 also indexes a `build/` directory whose files
+  git tracks (it used to prune every `build/`), so such a directory now
+  contributes modules. The `--arch` parser now requires only the attributes the
   adapter consumes, so trees mixing Python/TypeScript with files ripwire
   cannot resolve (for example Go) analyze instead of failing. The
   `cycle-approximation` warning now states ripwire's current listing cap.

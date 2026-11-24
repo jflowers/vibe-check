@@ -328,7 +328,7 @@ internal/ripwireadapter/  # ripwire-backed Python/TypeScript adapter (Layer 2)
   version.go       # Fail-closed ripwire release pin (single source: two constants) + sentinels
   runner.go        # Sanitized subprocess runner (bounded output, cancellation)
   crawl.go         # Crawl-root resolution (D9: Python src-layout, TS manifests)
-  denylist.go      # Denylist warning: pre-check (build/dist/...) ∪ ripwire <pruned_packages>
+  denylist.go      # Denylist warning: pre-check (build/dist/..., minus dirs ripwire indexed) ∪ ripwire <pruned_packages>
   guard.go         # Zero-coupling guard (edges == 0 with sources present)
   parse_arch.go    # --arch parser: consumed attributes only; zone="unknown" rows are Ca/Ce floors
   parse_deps.go    # --deps file graph parser (edges, cycles, paging attrs)

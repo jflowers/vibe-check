@@ -12,14 +12,15 @@ import (
 	"github.com/zero-dot-force/vibe-check/metrics"
 )
 
-// crawlDenylistNames are the directory names ripwire hard-prunes from every
-// crawl (validated against the pinned ripwire release: a fixture
-// operations/build directory is absent from all recorded outputs). The
-// adapter's pre-check mirrors this set so users understand why source code
-// they can see contributes no metrics; ripwire's own <pruned_packages>
-// disclosure is unioned in (openspec/changes/bump-ripwire-pin design D5) so
-// an upstream denylist change the list has not caught up with still
-// surfaces for real packages.
+// crawlDenylistNames are the directory names ripwire prunes from a crawl
+// (validated against the pinned ripwire release). The adapter's pre-check
+// mirrors this set so users understand why source code they can see
+// contributes no metrics; ripwire's own <pruned_packages> disclosure is
+// unioned in (openspec/changes/bump-ripwire-pin design D5) so an upstream
+// denylist change the list has not caught up with still surfaces for real
+// packages. A name is a candidate, not a verdict: the pinned release indexes
+// a build/ directory whose files git tracks, so the pre-check drops any
+// candidate ripwire reported a module at or beneath.
 var crawlDenylistNames = []string{
 	"build",
 	"dist",
@@ -50,7 +51,11 @@ const warningDenylistPruned = "denylist-pruned"
 
 // detectDenylistPruned reports the source directories ripwire prunes from
 // the crawl: the union of the denylist-named, source-bearing directories
-// found by walking the crawl root and the package paths ripwire itself
+// found by walking the crawl root that ripwire did not index (indexedDirs:
+// the --arch module paths, crawl-root-relative and slash-separated; a
+// candidate with a module at or beneath it was crawled, so it is neither
+// reported nor skipped, and nested candidates under it are still checked)
+// and the package paths ripwire itself
 // lists under <pruned_packages> (ripwirePruned, crawl-root-relative,
 // slash-separated; ripwireCount is ripwire's exact count=, which may
 // exceed the listed paths because ripwire caps the listing). It returns at
@@ -66,7 +71,7 @@ const warningDenylistPruned = "denylist-pruned"
 // subtrees are skipped rather than failing the analysis — one locked
 // directory in a user tree must not abort a crawl — while every other walk
 // error fails closed as a wrapped error.
-func detectDenylistPruned(crawlRoot string, ripwirePruned []string, ripwireCount int) ([]metrics.Warning, error) {
+func detectDenylistPruned(crawlRoot string, indexedDirs, ripwirePruned []string, ripwireCount int) ([]metrics.Warning, error) {
 	info, err := os.Stat(crawlRoot)
 	if err != nil {
 		return nil, fmt.Errorf("denylist pre-check: stat %s: %w", crawlRoot, err)
@@ -99,8 +104,13 @@ func detectDenylistPruned(crawlRoot string, ripwirePruned []string, ripwireCount
 			// scoping choice, not a pruning surprise.
 			return nil
 		}
+		rel := filepath.ToSlash(relativeToRoot(crawlRoot, path))
+		if indexedAtOrBeneath(rel, indexedDirs) {
+			// ripwire crawled it (a git-tracked build/): not pruned.
+			return nil
+		}
 		if dirContainsSource(path) {
-			pruned = append(pruned, filepath.ToSlash(relativeToRoot(crawlRoot, path)))
+			pruned = append(pruned, rel)
 			// Do not descend: everything beneath is pruned with it,
 			// and nested denylist names under a pruned dir are
 			// noise.
@@ -143,6 +153,19 @@ func denylistPrunedWarning(preCheck, ripwirePruned []string, ripwireCount int) [
 		)
 	}
 	return []metrics.Warning{{Code: warningDenylistPruned, Message: message}}
+}
+
+// indexedAtOrBeneath reports whether any indexed module path equals dir or
+// lies beneath it. Paths are compared slash-separated with any leading "./"
+// removed, since the mapping accepts both row path forms.
+func indexedAtOrBeneath(dir string, indexedDirs []string) bool {
+	for _, p := range indexedDirs {
+		p = strings.TrimPrefix(p, "./")
+		if p == dir || strings.HasPrefix(p, dir+"/") {
+			return true
+		}
+	}
+	return false
 }
 
 // errNotDirectory reports a crawl root that exists but is not a directory.

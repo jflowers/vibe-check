@@ -70,11 +70,11 @@ Python and TypeScript analysis is powered by an optional external tool:
 [ripwire](https://github.com/redhat-et/ripwire).
 
 ```bash
-# Prerequisite for Python/TypeScript only: install ripwire <RELEASE> and put it on PATH
+# Prerequisite for Python/TypeScript only: install ripwire 0.7.0 and put it on PATH
 vibe-check analyze ./my-python-project
 ```
 
-- **Install**: download ripwire `<RELEASE>` (built from commit `<RELEASE-COMMIT>`) from
+- **Install**: download ripwire `0.7.0` (built from commit `5a3df04`) from
   <https://github.com/redhat-et/ripwire> and ensure the binary is on `PATH`. A source
   build of ripwire `main` reports a development version and is refused.
 - **Version pin, fail-closed**: `analyze` validates the resolved binary's reported
@@ -107,7 +107,7 @@ vibe-check analyze ./my-python-project
 | `error-budget` | Measured inaccuracy of the coupling data against the pinned ripwire release: Python directory Ca/Ce 100% exact on pip and django, file edges at least 0.11% lost / 0.01% spurious; TypeScript 0.16% of import targets unresolved (rollup). Method and figures: `openspec/changes/bump-ripwire-pin/measurement/`. |
 | `cycle-approximation` | Cycles are a directory-grain SCC derivation, corroborated against ripwire's own file-level listing (up to 1000 SCCs × 12 members). The derivation name-resolves import text, so a cycle closed only through a `from pkg import subpkg` import is not detected even though Ca/Ce count that edge. |
 | `coupling-floor` | ripwire resolves almost no imports for some languages (Go, Java, Kotlin, C#, PHP, Swift, Dart, GDScript, Clojure). A module holding such a file reports Ca/Ce as lower bounds; the warning names the modules and languages. |
-| `denylist-pruned` | ripwire skips directories named `build`, `dist`, `out`, `target`, `vendor`, `third_party`, `captures`; the warning lists the source-bearing ones it pruned. |
+| `denylist-pruned` | ripwire skips directories named `build`, `dist`, `out`, `target`, `vendor`, `third_party`, `captures` (except a `build` directory whose files git tracks, which it indexes); the warning lists the source-bearing ones it pruned. |
 | `ts-abstractness-bias` | TypeScript abstractness undercounts `abstract class` declarations and type aliases inflate the type denominator. |
 | `unsupported-metric` | Duplication is not computed for these languages. |
 

@@ -1,1 +1,1 @@
-ripwire 0.6.11 (Release, AppleClang 21.0.0.21000334, emit=std::print, built_from=1edb6fd6a)
+ripwire 0.7.0 (Release, AppleClang 21.0.0.21000101, emit=std::print, act=on, rows=lines, built_from=5a3df049e)

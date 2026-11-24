@@ -44,11 +44,11 @@
 
 ## 7. Finalize on the upstream release (Phase B — blocked on upstream)
 
-- [ ] 7.1 When upstream publishes the first release containing `0b8f0bf8` (#533), download the macOS arm64 archive, verify its published sha256, extract outside the repository, and confirm `--version` reports the release version and a `built_from=` commit containing #533. Verify: digests and version line recorded in `testdata/README.md`'s provenance table.
-- [ ] 7.2 Set `pinnedRipwireVersion` / `pinnedRipwireCommit` to the release pair; replace the provisional `version.txt` files with real captures. Verify: version tests pass; the dev build from 1.1 is now refused.
-- [ ] 7.3 Re-capture every recording from the release binary (twice, `cmp`). Verify: coupling content is identical to Phase A — only `version.txt` and legend comments may differ; **any other diff reopens review** (design D8).
-- [ ] 7.4 Re-run the measurement harness against the release binary; update `results.md` and `budget.go` if any figure moved. Verify: the 5.2 gate still holds.
-- [ ] 7.5 Replace every `<RELEASE>` placeholder; run CI parity (as 6.4) and the real-binary integration test with the release binary on PATH. Verify: all pass; `grep '<RELEASE>'` is empty.
+- [x] 7.1 When upstream publishes the first release containing `0b8f0bf8` (#533), download the macOS arm64 archive, verify its published sha256, extract outside the repository, and confirm `--version` reports the release version and a `built_from=` commit containing #533. Verify: digests and version line recorded in `testdata/README.md`'s provenance table.
+- [x] 7.2 Set `pinnedRipwireVersion` / `pinnedRipwireCommit` to the release pair; replace the provisional `version.txt` files with real captures. Verify: version tests pass; the dev build from 1.1 is now refused.
+- [x] 7.3 Re-capture every recording from the release binary (twice, `cmp`). Verify: coupling content is identical to Phase A — only `version.txt` and legend comments may differ; **any other diff reopens review** (design D8). (Done 2026-11-24 with ripwire 0.7.0: `typescript/` and `python-mixed/` identical; `python/` differs because 0.7.0 indexes the git-tracked `operations/build` — review reopened; the adapter, goldens, docs, spec, and design D5/D8 amended, see design "Phase B outcome".)
+- [x] 7.4 Re-run the measurement harness against the release binary; update `results.md` and `budget.go` if any figure moved. Verify: the 5.2 gate still holds.
+- [x] 7.5 Replace every `<RELEASE>` placeholder; run CI parity (as 6.4) and the real-binary integration test with the release binary on PATH. Verify: all pass; `grep '<RELEASE>'` is empty. (Done 2026-11-24: build, vet, race tests, ratchet 8/8 ripwire-free; real-binary tests pass with 0.7.0 on PATH; lint clean apart from the two pre-existing `metrics/external.go` errcheck findings under local v2.15.0.)
 - [ ] 7.6 Re-run the review council on the Phase B diff, then mark the PR ready. Verify: council APPROVE; no code change between approval and ready.
 
 ## Workflow follow-up

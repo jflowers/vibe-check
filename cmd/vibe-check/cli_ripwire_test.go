@@ -147,8 +147,8 @@ func TestRunAnalyze_AdapterSelection(t *testing.T) {
 		if result.Graph == nil || result.Graph.Language != "python" {
 			t.Fatalf("graph language: got %+v, want python", result.Graph)
 		}
-		if len(result.Graph.Modules) != 7 {
-			t.Errorf("modules: got %d, want 7 (fixture graph)", len(result.Graph.Modules))
+		if len(result.Graph.Modules) != 8 {
+			t.Errorf("modules: got %d, want 8 (fixture graph)", len(result.Graph.Modules))
 		}
 	})
 

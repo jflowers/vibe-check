@@ -5,7 +5,7 @@ openspec/changes/bump-ripwire-pin design D6 / tasks 5.1-5.2. Spec-phase
 evidence, never built or run by CI. Run with `python3 -I` (isolated mode)
 so nothing in the measured tree can shadow a standard-library module.
 
-    python3 -I measure_python.py <ripwire-binary> <crawl-root> [--json]
+    python3 -I measure_python.py <ripwire-binary> <crawl-root> [--json] [--tracked-build]
 
 <crawl-root> is the directory ripwire crawls (for a src-layout project, its
 src/ directory), exactly as the adapter would choose it.
@@ -30,7 +30,11 @@ files with Python's own rules:
   * targets outside the tree (stdlib, third-party) are not edges.
   * directories ripwire's crawl denylist prunes are excluded from both
     sides: their absence is disclosed separately (denylist-pruned warning),
-    not an accuracy error.
+    not an accuracy error. With --tracked-build (ripwire >= 0.7.0), a
+    build/ directory under which git tracks files is crawled, and only its
+    tracked files count: the rule ripwire 0.7.0 adopted ("a build/ directory
+    whose files git tracks is indexed"). Without it, build/ is always
+    pruned, as in 0.6.9 and 0.6.10.
 
 Measured (ripwire side):
 
@@ -58,23 +62,43 @@ import xml.etree.ElementTree as ET
 DENYLIST = {"build", "dist", "out", "target", "vendor", "third_party", "captures"}
 
 
-def python_files(root, pruned=None):
+def git_tracked(root):
+    """Crawl-root-relative paths git tracks under root (empty outside git)."""
+    out = subprocess.run(["git", "-C", root, "ls-files", "-z"], capture_output=True)
+    if out.returncode != 0:
+        return set()
+    return {p for p in out.stdout.decode("utf-8", "surrogateescape").split("\0") if p}
+
+
+def python_files(root, pruned=None, tracked=None):
     """Yield crawl-root-relative paths of .py files, pruning like ripwire.
 
     When pruned is a set, the crawl-root-relative paths of the denylisted
-    directories that were skipped are added to it.
+    directories that were skipped are added to it. When tracked is a set of
+    git-tracked paths (--tracked-build), a build/ directory holding any of
+    them is crawled, keeping only tracked files beneath it.
     """
+    tracked_build = set()  # crawl-root-relative build/ dirs being crawled
     for dirpath, dirnames, filenames in os.walk(root):
+        rel_dir = os.path.relpath(dirpath, root).replace(os.sep, "/")
+        rel_dir = "" if rel_dir == "." else rel_dir + "/"
+        inside_build = any(rel_dir.startswith(b + "/") for b in tracked_build)
         kept = []
         for d in sorted(dirnames):
+            rel = rel_dir + d
+            if d == "build" and tracked is not None and any(t.startswith(rel + "/") for t in tracked):
+                tracked_build.add(rel)
+                kept.append(d)
+                continue
             if d in DENYLIST and pruned is not None:
-                pruned.add(os.path.relpath(os.path.join(dirpath, d), root).replace(os.sep, "/"))
+                pruned.add(rel)
             if d not in DENYLIST and not d.startswith("."):
                 kept.append(d)
         dirnames[:] = kept
         for name in sorted(filenames):
-            if name.endswith(".py"):
-                yield os.path.relpath(os.path.join(dirpath, name), root).replace(os.sep, "/")
+            rel = rel_dir + name
+            if name.endswith(".py") and (not inside_build or rel in tracked):
+                yield rel
 
 
 def module_name(rel):
@@ -85,10 +109,10 @@ def module_name(rel):
     return ".".join(parts)
 
 
-def ground_truth(root):
+def ground_truth(root, tracked=None):
     """Return (files, edges): in-tree files and resolved (src, dst) file edges."""
     pruned = set()
-    files = list(python_files(root, pruned))
+    files = list(python_files(root, pruned, tracked))
     by_module = {module_name(f): f for f in files}
     file_set = set(files)
 
@@ -238,11 +262,12 @@ def main():
         sys.exit(__doc__)
     ripwire, root = sys.argv[1], os.path.abspath(sys.argv[2])
     as_json = "--json" in sys.argv[3:]
+    tracked = git_tracked(root) if "--tracked-build" in sys.argv[3:] else None
     here = os.path.dirname(os.path.abspath(__file__))
     rules = os.path.join(here, "arch-rules.txt")
 
     version = subprocess.run([ripwire, "--version"], capture_output=True, text=True, check=True).stdout.strip()
-    files, edges, parse_errors = ground_truth(root)
+    files, edges, parse_errors = ground_truth(root, tracked)
     gt_dirs = directory_metrics(files, edges)
     rw_dirs = ripwire_dirs(ripwire, root, rules)
     rw_fan = ripwire_fan_out(ripwire, root)

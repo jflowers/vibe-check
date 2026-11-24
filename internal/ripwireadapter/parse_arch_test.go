@@ -26,18 +26,22 @@ func TestParseArchOutput_RecordedPython(t *testing.T) {
 	}
 
 	want := map[string]archModuleRow{
-		"fixturepy":            {Path: "fixturepy", Ca: 1, Ce: 0, Types: 5, Abstract: 0},
-		"fixturepy/alias":      {Path: "fixturepy/alias", Ca: 0, Ce: 1},
-		"fixturepy/collide":    {Path: "fixturepy/collide", Ca: 0, Ce: 0},
-		"fixturepy/cycle_a":    {Path: "fixturepy/cycle_a", Ca: 2, Ce: 1},
-		"fixturepy/cycle_b":    {Path: "fixturepy/cycle_b", Ca: 2, Ce: 1},
-		"fixturepy/operations": {Path: "fixturepy/operations", Ca: 0, Ce: 0},
-		"fixturepy/wide":       {Path: "fixturepy/wide", Ca: 0, Ce: 2},
+		"fixturepy":                  {Path: "fixturepy", Ca: 1, Ce: 0, Types: 5, Abstract: 0},
+		"fixturepy/alias":            {Path: "fixturepy/alias", Ca: 0, Ce: 1},
+		"fixturepy/collide":          {Path: "fixturepy/collide", Ca: 0, Ce: 0},
+		"fixturepy/cycle_a":          {Path: "fixturepy/cycle_a", Ca: 2, Ce: 1},
+		"fixturepy/cycle_b":          {Path: "fixturepy/cycle_b", Ca: 2, Ce: 1},
+		"fixturepy/operations":       {Path: "fixturepy/operations", Ca: 0, Ce: 0},
+		"fixturepy/operations/build": {Path: "fixturepy/operations/build", Ca: 0, Ce: 0},
+		"fixturepy/wide":             {Path: "fixturepy/wide", Ca: 0, Ce: 2},
 	}
 	assertArchRows(t, table, want)
 
-	if !reflect.DeepEqual(table.PrunedPackages, []string{"fixturepy/operations/build"}) || table.PrunedPackageCount != 1 {
-		t.Errorf("pruned packages: got %v (count %d), want [fixturepy/operations/build] (count 1)",
+	// The pinned release indexes a build/ directory whose files git
+	// tracks, and the recording is captured inside this repository's
+	// checkout, so nothing is pruned.
+	if len(table.PrunedPackages) != 0 || table.PrunedPackageCount != 0 {
+		t.Errorf("pruned packages: got %v (count %d), want none (tracked build/ is indexed)",
 			table.PrunedPackages, table.PrunedPackageCount)
 	}
 }
@@ -89,6 +93,13 @@ func TestParseArchOutput_RecordedMixedLanguage(t *testing.T) {
 	}}
 	if !reflect.DeepEqual(flagged, want) {
 		t.Errorf("flagged rows: got %+v, want %+v", flagged, want)
+	}
+
+	// Captured from a temporary copy outside git, so ripwire prunes the
+	// build/ package and discloses it.
+	if !reflect.DeepEqual(table.PrunedPackages, []string{"fixturepy/operations/build"}) || table.PrunedPackageCount != 1 {
+		t.Errorf("pruned packages: got %v (count %d), want [fixturepy/operations/build] (count 1)",
+			table.PrunedPackages, table.PrunedPackageCount)
 	}
 }
 

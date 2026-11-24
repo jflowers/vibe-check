@@ -32,10 +32,14 @@ fetch django django/django 03b95b8fbab990ebbe399a4676e4ad581fe9acfd
 fetch rollup rollup/rollup ad39ddc2856a229bf28762a7a9399757527cbffc
 
 H=path/to/openspec/changes/bump-ripwire-pin/measurement
-python3 -I "$H/measure_python.py"     "$RIPWIRE" pip/src --json
-python3 -I "$H/measure_python.py"     "$RIPWIRE" django  --json
+python3 -I "$H/measure_python.py"     "$RIPWIRE" pip/src --json --tracked-build
+python3 -I "$H/measure_python.py"     "$RIPWIRE" django  --json --tracked-build
 python3 -I "$H/measure_typescript.py" "$RIPWIRE" rollup  --json
 ```
+
+`--tracked-build` mirrors ripwire 0.7.0's crawl rule (a `build/` directory
+whose files git tracks is indexed); pass it for 0.7.0 and later, omit it for
+0.6.9, 0.6.10, and the Phase A `main` build, which prune every `build/`.
 
 Run every target once per binary: the pinned release, and ripwire 0.6.9 as the
 like-for-like baseline (release archive `ripwire-0.6.9-macos-arm64.tar.gz`,

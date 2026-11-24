@@ -158,6 +158,17 @@ packages but incomplete for plain directories; the pre-check is complete for
 the names it knows but goes stale silently if upstream changes its denylist.
 The union costs no subprocess (it reuses the `--arch` call already made).
 
+**Amendment (Phase B, ripwire 0.7.0).** A denylist name is now a candidate,
+not a verdict: 0.7.0 indexes a `build/` whose files git tracks. The
+pre-check therefore drops any candidate that has an `--arch` module row at or
+beneath it (it was crawled), and keeps descending into it so a nested
+candidate ripwire did not index is still reported. Using ripwire's own rows
+rather than re-implementing its git query keeps the adapter free of a git
+dependency and correct if upstream extends the rule to other names.
+Untracked files inside a tracked `build/` are left out by ripwire and not
+reported by the pre-check (ripwire's `--skipped` lists them as
+`why=untracked-build`).
+
 ### D6: Re-measured error budgets with a committed harness
 
 `errorBudgetWarning` hardcodes the spike's figures (Python 1.9% lost / 2.2%
@@ -221,6 +232,19 @@ README, re-run the measurement harness against the release binary, and run CI
 parity.
 
 The PR stays in draft through Phase A and is marked ready only after Phase B.
+
+**Phase B outcome (2026-11-24).** Upstream skipped 0.6.11 and released
+**0.7.0** @ `5a3df049e`, 681 commits past the Phase A build; the pin is
+`0.7.0` / `5a3df04`. The re-capture was byte-identical for `typescript/` and
+`python-mixed/` (apart from `version.txt`). `python/` differed, which reopened
+review per this decision: 0.7.0 indexes a `build/` directory whose files git
+tracks (upstream "a `build/` directory whose files git tracks is indexed";
+`dist/`, `out/`, `target/` stay pruned), and the `python/` capture runs inside
+this repository's checkout, so `fixturepy/operations/build` became an
+isolated eighth module with no `<pruned_packages>`. Every other row is
+identical. The adapter follows in D5's amendment; the measurement harness
+gained `--tracked-build` to mirror the rule, and every figure held (pip
+`src/` now has 54 directories, 100% exact).
 
 ## Risks / Trade-offs
 

@@ -59,7 +59,8 @@ pair, and no ModuleGraph MUST be emitted.
 ### Requirement: Denylist warning unions both pruning sources
 
 The `denylist-pruned` warning SHALL list the sorted, de-duplicated union of the
-directories found by the adapter's filesystem pre-check and the package paths
+directories found by the adapter's filesystem pre-check that ripwire did not
+index and the package paths
 ripwire reports under `<pruned_packages>` in its `--arch` output. When
 ripwire's package count exceeds the paths it lists, the warning MUST state the
 count.
@@ -93,6 +94,15 @@ count.
   the number of `<p>` rows it lists
 - **WHEN** the output is mapped
 - **THEN** the `denylist-pruned` warning MUST state ripwire's total count
+
+#### Scenario: Denylist-named directory indexed by ripwire is not reported
+
+- **GIVEN** ripwire `--arch` output with a module row at or beneath a
+  denylist-named, source-bearing directory (a `build/` whose files git tracks)
+- **WHEN** the project is analyzed
+- **THEN** the `denylist-pruned` warning MUST NOT list that directory, and a
+  denylist-named directory nested beneath it that ripwire did not index MUST
+  still be listed
 
 #### Scenario: No denylisted directories
 
