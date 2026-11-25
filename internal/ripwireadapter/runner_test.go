@@ -73,6 +73,93 @@ func TestPreviewOutput(t *testing.T) {
 	}
 }
 
+// TestBoundedWriter_Write pins the capture-bound boundary at the Write
+// level: a write that lands exactly on the limit succeeds (the runner
+// promises output at or below the bound is returned verbatim), only a
+// write past it fails, and a failing write marks the writer oversized,
+// invokes onOversize once, and buffers nothing past the bound.
+func TestBoundedWriter_Write(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name          string
+		limit         int64
+		writes        [][]byte
+		wantLastN     int
+		wantLastErr   error
+		wantOversized bool
+		wantBufLen    int
+	}{
+		{
+			name:       "write under the limit is buffered verbatim",
+			limit:      8,
+			writes:     [][]byte{[]byte("abc")},
+			wantLastN:  3,
+			wantBufLen: 3,
+		},
+		{
+			name:       "writes landing exactly on the limit succeed",
+			limit:      8,
+			writes:     [][]byte{[]byte("abc"), []byte("defgh")},
+			wantLastN:  5,
+			wantBufLen: 8,
+		},
+		{
+			name:          "write past the limit fails without buffering",
+			limit:         8,
+			writes:        [][]byte{[]byte("abc"), []byte("defghijklm")},
+			wantLastN:     0,
+			wantLastErr:   errOutputOversized,
+			wantOversized: true,
+			wantBufLen:    3,
+		},
+		{
+			name:          "write to a buffer already at the limit fails",
+			limit:         8,
+			writes:        [][]byte{[]byte("abcdefgh"), []byte("x")},
+			wantLastN:     0,
+			wantLastErr:   errOutputOversized,
+			wantOversized: true,
+			wantBufLen:    8,
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			kills := 0
+			w := &boundedWriter{limit: tc.limit, onOversize: func() { kills++ }}
+			var lastN int
+			var lastErr error
+			for _, p := range tc.writes {
+				lastN, lastErr = w.Write(p)
+			}
+			if tc.wantLastErr != nil {
+				if !errors.Is(lastErr, tc.wantLastErr) {
+					t.Fatalf("Write: got error %v, want %v", lastErr, tc.wantLastErr)
+				}
+			} else if lastErr != nil {
+				t.Fatalf("Write: got error %v, want nil", lastErr)
+			}
+			if lastN != tc.wantLastN {
+				t.Errorf("Write return: got %d, want %d", lastN, tc.wantLastN)
+			}
+			if w.oversized != tc.wantOversized {
+				t.Errorf("oversized flag: got %v, want %v", w.oversized, tc.wantOversized)
+			}
+			if len(w.buf) != tc.wantBufLen {
+				t.Errorf("buffered bytes: got %d, want %d", len(w.buf), tc.wantBufLen)
+			}
+			wantKills := 0
+			if tc.wantLastErr != nil {
+				wantKills = 1
+			}
+			if kills != wantKills {
+				t.Errorf("onOversize calls: got %d, want %d", kills, wantKills)
+			}
+		})
+	}
+}
+
 func TestRunner_EnvironmentAndWorkingDirectory(t *testing.T) {
 	// Not parallel: installs PATH state and sets a host credential.
 	installProbeScript(t)
@@ -151,6 +238,19 @@ func TestRunner_CancelledContext(t *testing.T) {
 // far above the runner's wait delay plus race-detector slack, and far below
 // the package timeout, so a hung run fails its own test quickly.
 const runDeadline = 20 * time.Second
+
+// testWaitDelay is the shrunk wait delay for pipe-hang regression tests
+// (design D2): far above process-spawn jitter and pipe teardown, far below
+// the production default, so each test spends milliseconds waiting for the
+// mechanism under test rather than the full production delay.
+const testWaitDelay = 200 * time.Millisecond
+
+// maxReturnTime bounds how long a pipe-hang regression test's run may take
+// to return once its mechanism (cancellation or the wait delay) has fired:
+// the shrunk test delay plus generous scheduling and race-detector slack,
+// far below runDeadline, so a regression that inflates the delay fails the
+// timing assertion instead of passing inside the hang deadline.
+const maxReturnTime = 5 * time.Second
 
 // runWithin calls runner.run in a goroutine and fails the test if it has not
 // returned within runDeadline, so a hang (the failure mode of the
@@ -281,8 +381,10 @@ func TestRunner_OversizedOutput(t *testing.T) {
 				t.Fatalf("flood script not on PATH: %v", err)
 			}
 			// Shrink the bound below the blob size: the field exists for
-			// exactly this test.
-			runner := &ripwireRunner{binary: bin, maxOutputBytes: bound}
+			// exactly this test. The constructor's bounded pipe wait still
+			// applies.
+			runner := newRipwireRunner(bin)
+			runner.maxOutputBytes = bound
 
 			stdout, err := runWithin(t.Context(), t, runner)
 			if stdout != nil {
@@ -379,6 +481,7 @@ func TestRunner_CancelWithPipeHoldingChild(t *testing.T) {
 		t.Fatalf("script not on PATH: %v", err)
 	}
 	runner := newRipwireRunner(bin)
+	runner.waitDelay = testWaitDelay
 
 	// Cancel only once the child exists, so the run is in flight (not the
 	// pre-start fast path) and the child already holds the pipes.
@@ -395,12 +498,16 @@ func TestRunner_CancelWithPipeHoldingChild(t *testing.T) {
 		cancel()
 	}()
 
+	start := time.Now()
 	stdout, err := runWithin(ctx, t, runner)
 	if stdout != nil {
 		t.Fatalf("cancelled run: got stdout %d bytes, want nil", len(stdout))
 	}
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("cancelled run: got error %v, want one wrapping context.Canceled", err)
+	}
+	if elapsed := time.Since(start); elapsed > maxReturnTime {
+		t.Errorf("cancelled run: returned after %v, want within %v (wait delay plus scheduling slack)", elapsed, maxReturnTime)
 	}
 }
 
@@ -420,12 +527,108 @@ func TestRunner_SuccessfulExitWithAbandonedPipes(t *testing.T) {
 		t.Fatalf("script not on PATH: %v", err)
 	}
 	runner := newRipwireRunner(bin)
+	runner.waitDelay = testWaitDelay
 
+	start := time.Now()
 	stdout, err := runWithin(t.Context(), t, runner)
 	if stdout != nil {
 		t.Fatalf("abandoned pipes: got stdout %q, want nil (fail closed)", stdout)
 	}
 	if !errors.Is(err, exec.ErrWaitDelay) {
 		t.Fatalf("abandoned pipes: got error %v, want one wrapping exec.ErrWaitDelay", err)
+	}
+	if elapsed := time.Since(start); elapsed > maxReturnTime {
+		t.Errorf("abandoned pipes: returned after %v, want within %v (wait delay plus scheduling slack)", elapsed, maxReturnTime)
+	}
+}
+
+// installFloodWithHolderScript installs a probe executable named ripwire
+// on PATH that floods stdout past any test capture bound while a sibling
+// sleeper holds both output pipes open without writing. The flood drives
+// the oversize path; the sleeper — whose PID the script writes to the
+// returned file — keeps the pipes held past the wait delay even after the
+// flood writer dies, so oversize and abandoned-pipe conditions co-occur.
+func installFloodWithHolderScript(t *testing.T) string {
+	t.Helper()
+
+	dir := t.TempDir()
+	blobFile := filepath.Join(dir, "blob")
+	if err := os.WriteFile(blobFile, bytes.Repeat([]byte("x"), 1<<20), 0o644); err != nil {
+		t.Fatalf("installFloodWithHolderScript: write %s: %v", blobFile, err)
+	}
+	pidFile := filepath.Join(dir, "child.pid")
+	installRipwireScript(t, "cat "+shellSingleQuote(blobFile)+" >&1 &\nsleep 60 &\necho $! > "+shellSingleQuote(pidFile)+"\nwait\n")
+	killChildOnCleanup(t, pidFile)
+	return pidFile
+}
+
+// TestRunner_OversizeWinsOverWaitDelay pins the error-classification order
+// when oversize and abandoned pipes co-occur (design D3): the flood crosses
+// the capture bound while the sibling sleeper holds the pipes past the wait
+// delay, so Wait reports exec.ErrWaitDelay underneath — and the run must
+// still classify the failure as oversize.
+func TestRunner_OversizeWinsOverWaitDelay(t *testing.T) {
+	// Not parallel: installs PATH state.
+	installFloodWithHolderScript(t)
+
+	bin, err := exec.LookPath("ripwire")
+	if err != nil {
+		t.Fatalf("script not on PATH: %v", err)
+	}
+	runner := newRipwireRunner(bin)
+	runner.maxOutputBytes = 8
+	runner.waitDelay = testWaitDelay
+
+	stdout, err := runWithin(t.Context(), t, runner)
+	if stdout != nil {
+		t.Fatalf("oversize with held pipes: got stdout %d bytes, want nil", len(stdout))
+	}
+	if !errors.Is(err, errOutputOversized) {
+		t.Fatalf("oversize with held pipes: got error %v, want errOutputOversized (outranks exec.ErrWaitDelay)", err)
+	}
+}
+
+// TestRunner_CancellationWinsOverOversize pins the error-classification
+// order when cancellation and oversize co-occur (design D3): the flood
+// crosses the capture bound, the sibling sleeper holds the pipes, and the
+// context is cancelled mid-flight — the run must classify the failure as
+// context.Canceled, and must return within the wait delay plus slack.
+func TestRunner_CancellationWinsOverOversize(t *testing.T) {
+	// Not parallel: installs PATH state.
+	pidFile := installFloodWithHolderScript(t)
+
+	bin, err := exec.LookPath("ripwire")
+	if err != nil {
+		t.Fatalf("script not on PATH: %v", err)
+	}
+	runner := newRipwireRunner(bin)
+	runner.maxOutputBytes = 8
+	runner.waitDelay = testWaitDelay
+
+	// Cancel once the holder exists: by then the flood has crossed the
+	// bound, so both conditions hold and precedence decides the error.
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+	go func() {
+		deadline := time.Now().Add(runDeadline)
+		for time.Now().Before(deadline) {
+			if raw, err := os.ReadFile(pidFile); err == nil && len(strings.TrimSpace(string(raw))) > 0 {
+				break
+			}
+			time.Sleep(10 * time.Millisecond)
+		}
+		cancel()
+	}()
+
+	start := time.Now()
+	stdout, err := runWithin(ctx, t, runner)
+	if stdout != nil {
+		t.Fatalf("cancelled flood: got stdout %d bytes, want nil", len(stdout))
+	}
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("cancelled flood: got error %v, want one wrapping context.Canceled (outranks oversize)", err)
+	}
+	if elapsed := time.Since(start); elapsed > maxReturnTime {
+		t.Errorf("cancelled flood: returned after %v, want within %v (wait delay plus scheduling slack)", elapsed, maxReturnTime)
 	}
 }

@@ -38,8 +38,9 @@ TestRunner_OversizedOutput`), stuck in the stderr reader at
 - **Tests that hang deterministically on the old runner**: the oversize test
   writes enough output that the child can never finish, plus new cases for
   mid-flight cancellation and a successful exit that leaves a pipe-holding
-  child. Each is bounded by a test-level deadline so a regression fails
-  fast instead of eating the package timeout.
+  child, plus precedence pins for co-occurring failures (cancellation over
+  oversize, oversize over abandoned pipes). Each is bounded by a test-level
+  deadline so a regression fails fast instead of eating the package timeout.
 
 ## Capabilities
 
@@ -60,8 +61,12 @@ TestRunner_OversizedOutput`), stuck in the stderr reader at
 
 ## Impact
 
-- **Modified code**: `internal/ripwireadapter/runner.go` and
-  `runner_test.go`. No change to the runner's signature or callers.
+- **Modified code**: `internal/ripwireadapter/runner.go`,
+  `runner_test.go`, and `version.go` — the version pin-check's runner is
+  built through the defaulted constructor so it inherits the bounded pipe
+  wait, and a zero `waitDelay` falls back to the default at the use site, so
+  no construction path can lose the bound. No change to the runner's
+  signature.
 - **Unchanged**: `metrics/` (Layer 1), the schema, the output bound, error
   messages for oversize/nonzero exit/cancellation, the Go adapter, and the
   CLI. No new dependencies.

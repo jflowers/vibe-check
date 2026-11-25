@@ -52,7 +52,9 @@ needed for the goal, which is that `run` returns.
 
 Two seconds is enough for an exiting ripwire to flush its pipes, and it is
 small next to a typical analysis. It is a field next to `maxOutputBytes`, so
-tests can shrink it. Production uses the default.
+tests can shrink it. Production uses the default. A zero or negative value
+falls back to the default at the use site, so a runner built without the
+constructor — a struct literal — cannot silently lose the bounded wait.
 
 ### D3: Error precedence is unchanged, and `ErrWaitDelay` is an error
 

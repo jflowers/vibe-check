@@ -49,8 +49,9 @@ type ripwireRunner struct {
 	maxOutputBytes int64
 	// waitDelay is applied as cmd.WaitDelay: how long the runner waits for
 	// the output pipes to close after ripwire exits or the context is done.
-	// It exists as a field so tests can shrink it. Production callers use
-	// the package default.
+	// It exists as a field so tests can shrink it. A zero or negative value
+	// falls back to the package default at the use site, so a runner built
+	// without newRipwireRunner keeps the bounded wait.
 	waitDelay time.Duration
 }
 
@@ -117,10 +118,17 @@ func (r *ripwireRunner) run(ctx context.Context, dir string, args ...string) ([]
 		return nil, fmt.Errorf("ripwire runner: %w", err)
 	}
 
+	// A zero or negative waitDelay falls back to the package default, so
+	// every construction path — including struct literals that bypass
+	// newRipwireRunner — keeps a bounded pipe wait.
+	waitDelay := r.waitDelay
+	if waitDelay <= 0 {
+		waitDelay = defaultWaitDelay
+	}
 	cmd := exec.CommandContext(ctx, r.binary, args...)
 	cmd.Dir = dir
 	cmd.Env = ripwireEnv()
-	cmd.WaitDelay = r.waitDelay
+	cmd.WaitDelay = waitDelay
 
 	// The first stream to cross the bound kills the process. The kill is
 	// shared so it happens once, and os/exec closes the crossed stream's
@@ -154,7 +162,7 @@ func (r *ripwireRunner) run(ctx context.Context, dir string, args ...string) ([]
 	// pipes under it and the capture may be incomplete. Fail closed.
 	if errors.Is(waitErr, exec.ErrWaitDelay) {
 		return nil, fmt.Errorf("ripwire runner: %s %v exited but left its output pipes open past %v: %w",
-			r.binary, args, r.waitDelay, waitErr)
+			r.binary, args, waitDelay, waitErr)
 	}
 	if waitErr != nil {
 		return nil, fmt.Errorf("ripwire runner: %s %v: %w; stderr: %s",
