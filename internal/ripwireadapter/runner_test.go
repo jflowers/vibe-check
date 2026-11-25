@@ -8,8 +8,10 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
+	"time"
 )
 
 // Subprocess-runner tests — openspec/changes/archive/2026-11-24-ripwire-adapter task 2.3.
@@ -145,12 +147,84 @@ func TestRunner_CancelledContext(t *testing.T) {
 	}
 }
 
+// runDeadline bounds how long a runner test waits for run to return. It sits
+// far above the runner's wait delay plus race-detector slack, and far below
+// the package timeout, so a hung run fails its own test quickly.
+const runDeadline = 20 * time.Second
+
+// runWithin calls runner.run in a goroutine and fails the test if it has not
+// returned within runDeadline, so a hang (the failure mode of the
+// runner-pipe-hang change) is reported by name instead of consuming the
+// package timeout.
+func runWithin(ctx context.Context, t *testing.T, runner *ripwireRunner, args ...string) ([]byte, error) {
+	t.Helper()
+
+	type result struct {
+		stdout []byte
+		err    error
+	}
+	done := make(chan result, 1)
+	go func() {
+		stdout, err := runner.run(ctx, ".", args...)
+		done <- result{stdout, err}
+	}()
+	select {
+	case r := <-done:
+		return r.stdout, r.err
+	case <-time.After(runDeadline):
+		t.Fatalf("run %v did not return within %v: hung on a pipe held open by a child process", args, runDeadline)
+		return nil, nil
+	}
+}
+
+// installRipwireScript installs a /bin/sh script named ripwire on PATH with
+// the given body and returns the directory it lives in, for tests that
+// need a scratch file next to the script.
+func installRipwireScript(t *testing.T, body string) string {
+	t.Helper()
+
+	dir := t.TempDir()
+	bin := filepath.Join(dir, "ripwire")
+	if err := os.WriteFile(bin, []byte("#!/bin/sh\n"+body), 0o755); err != nil {
+		t.Fatalf("installRipwireScript: write %s: %v", bin, err)
+	}
+	if err := os.Chmod(bin, 0o755); err != nil {
+		t.Fatalf("installRipwireScript: chmod %s: %v", bin, err)
+	}
+	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
+	return dir
+}
+
+// killChildOnCleanup registers a cleanup that kills the process whose PID a
+// script wrote to pidFile, so a pipe-holding child a test started never
+// outlives the test. A missing or unreadable file means the child never
+// started, and there is nothing to kill.
+func killChildOnCleanup(t *testing.T, pidFile string) {
+	t.Helper()
+
+	t.Cleanup(func() {
+		raw, err := os.ReadFile(pidFile)
+		if err != nil {
+			return
+		}
+		pid, err := strconv.Atoi(strings.TrimSpace(string(raw)))
+		if err != nil {
+			return
+		}
+		if p, err := os.FindProcess(pid); err == nil {
+			_ = p.Kill()
+		}
+	})
+}
+
 // installFloodScript installs a probe executable named ripwire on PATH that
 // writes blob to the named stream ("stdout" or "stderr") and nothing to the
 // other stream, so the runner's oversized-capture error can be driven per
-// stream. The blob is expected to exceed the OS pipe buffer, which exercises
-// the concurrent drain: the first bounded reader to cross the bound kills the
-// process so the sibling reader unblocks.
+// stream. The writer is a backgrounded child the script waits on, so the
+// child (not ripwire itself) holds both pipes: killing the script leaves it
+// running. The blob is expected to exceed the OS pipe buffer, so the child
+// can never drain it unread and exit on its own; only closing the crossed
+// pipe stops it.
 func installFloodScript(t *testing.T, stream string, blob []byte) {
 	t.Helper()
 
@@ -162,9 +236,11 @@ func installFloodScript(t *testing.T, stream string, blob []byte) {
 	}
 	redirect := ">&1"
 	if stream == "stderr" {
-		redirect = ">&2"
+		// 3>&1 keeps a copy of the stdout pipe open in the child: a bare
+		// >&2 would replace it, and the child would hold only stderr.
+		redirect = "3>&1 >&2"
 	}
-	script := "#!/bin/sh\ncat " + shellSingleQuote(blobFile) + " " + redirect + "\n"
+	script := "#!/bin/sh\ncat " + shellSingleQuote(blobFile) + " " + redirect + " &\nwait\n"
 	if err := os.WriteFile(bin, []byte(script), 0o755); err != nil {
 		t.Fatalf("installFloodScript: write %s: %v", bin, err)
 	}
@@ -183,9 +259,10 @@ func installFloodScript(t *testing.T, stream string, blob []byte) {
 func TestRunner_OversizedOutput(t *testing.T) {
 	// Not parallel: installs PATH state.
 	const bound = 8
-	// The blob exceeds the OS pipe buffer, so the writer blocks until the
-	// bounded reader crosses the bound and kills the process.
-	blob := bytes.Repeat([]byte("x"), 128<<10)
+	// The blob is far larger than any OS pipe buffer, so the backgrounded
+	// writer can never finish on its own: the run returns only if crossing
+	// the bound also releases the child's hold on the pipes.
+	blob := bytes.Repeat([]byte("x"), 1<<20)
 
 	cases := []struct {
 		name      string
@@ -207,7 +284,7 @@ func TestRunner_OversizedOutput(t *testing.T) {
 			// exactly this test.
 			runner := &ripwireRunner{binary: bin, maxOutputBytes: bound}
 
-			stdout, err := runner.run(t.Context(), ".")
+			stdout, err := runWithin(t.Context(), t, runner)
 			if stdout != nil {
 				t.Fatalf("oversized output: got stdout %d bytes, want nil (never truncated)", len(stdout))
 			}
@@ -283,5 +360,72 @@ func TestRunner_ReplaysRecordings(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// TestRunner_CancelWithPipeHoldingChild pins the cancellation path when a
+// child of ripwire holds both output pipes: killing ripwire alone never
+// delivers EOF, so the run must still return, with an error wrapping
+// context.Canceled and no stdout, instead of waiting for the child.
+func TestRunner_CancelWithPipeHoldingChild(t *testing.T) {
+	// Not parallel: installs PATH state.
+	dir := t.TempDir()
+	pidFile := filepath.Join(dir, "child.pid")
+	installRipwireScript(t, "sleep 60 &\necho $! > "+shellSingleQuote(pidFile)+"\nwait\n")
+	killChildOnCleanup(t, pidFile)
+
+	bin, err := exec.LookPath("ripwire")
+	if err != nil {
+		t.Fatalf("script not on PATH: %v", err)
+	}
+	runner := newRipwireRunner(bin)
+
+	// Cancel only once the child exists, so the run is in flight (not the
+	// pre-start fast path) and the child already holds the pipes.
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+	go func() {
+		deadline := time.Now().Add(runDeadline)
+		for time.Now().Before(deadline) {
+			if raw, err := os.ReadFile(pidFile); err == nil && len(strings.TrimSpace(string(raw))) > 0 {
+				break
+			}
+			time.Sleep(10 * time.Millisecond)
+		}
+		cancel()
+	}()
+
+	stdout, err := runWithin(ctx, t, runner)
+	if stdout != nil {
+		t.Fatalf("cancelled run: got stdout %d bytes, want nil", len(stdout))
+	}
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("cancelled run: got error %v, want one wrapping context.Canceled", err)
+	}
+}
+
+// TestRunner_SuccessfulExitWithAbandonedPipes pins the fail-closed rule for a
+// ripwire that exits 0 while a child it started still holds its output
+// pipes: the output may be incomplete, so the run must return an error
+// wrapping exec.ErrWaitDelay and no stdout, and must not wait for the child.
+func TestRunner_SuccessfulExitWithAbandonedPipes(t *testing.T) {
+	// Not parallel: installs PATH state.
+	dir := t.TempDir()
+	pidFile := filepath.Join(dir, "child.pid")
+	installRipwireScript(t, "sleep 60 &\necho $! > "+shellSingleQuote(pidFile)+"\necho partial\n")
+	killChildOnCleanup(t, pidFile)
+
+	bin, err := exec.LookPath("ripwire")
+	if err != nil {
+		t.Fatalf("script not on PATH: %v", err)
+	}
+	runner := newRipwireRunner(bin)
+
+	stdout, err := runWithin(t.Context(), t, runner)
+	if stdout != nil {
+		t.Fatalf("abandoned pipes: got stdout %q, want nil (fail closed)", stdout)
+	}
+	if !errors.Is(err, exec.ErrWaitDelay) {
+		t.Fatalf("abandoned pipes: got error %v, want one wrapping exec.ErrWaitDelay", err)
 	}
 }
