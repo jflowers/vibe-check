@@ -88,21 +88,21 @@ func TestBoundedWriter_Write(t *testing.T) {
 		wantLastN     int
 		wantLastErr   error
 		wantOversized bool
-		wantBufLen    int
+		wantBuf       string
 	}{
 		{
-			name:       "write under the limit is buffered verbatim",
-			limit:      8,
-			writes:     [][]byte{[]byte("abc")},
-			wantLastN:  3,
-			wantBufLen: 3,
+			name:      "write under the limit is buffered verbatim",
+			limit:     8,
+			writes:    [][]byte{[]byte("abc")},
+			wantLastN: 3,
+			wantBuf:   "abc",
 		},
 		{
-			name:       "writes landing exactly on the limit succeed",
-			limit:      8,
-			writes:     [][]byte{[]byte("abc"), []byte("defgh")},
-			wantLastN:  5,
-			wantBufLen: 8,
+			name:      "writes landing exactly on the limit succeed",
+			limit:     8,
+			writes:    [][]byte{[]byte("abc"), []byte("defgh")},
+			wantLastN: 5,
+			wantBuf:   "abcdefgh",
 		},
 		{
 			name:          "write past the limit fails without buffering",
@@ -111,7 +111,7 @@ func TestBoundedWriter_Write(t *testing.T) {
 			wantLastN:     0,
 			wantLastErr:   errOutputOversized,
 			wantOversized: true,
-			wantBufLen:    3,
+			wantBuf:       "abc",
 		},
 		{
 			name:          "write to a buffer already at the limit fails",
@@ -120,7 +120,7 @@ func TestBoundedWriter_Write(t *testing.T) {
 			wantLastN:     0,
 			wantLastErr:   errOutputOversized,
 			wantOversized: true,
-			wantBufLen:    8,
+			wantBuf:       "abcdefgh",
 		},
 	}
 	for _, tc := range cases {
@@ -146,8 +146,8 @@ func TestBoundedWriter_Write(t *testing.T) {
 			if w.oversized != tc.wantOversized {
 				t.Errorf("oversized flag: got %v, want %v", w.oversized, tc.wantOversized)
 			}
-			if len(w.buf) != tc.wantBufLen {
-				t.Errorf("buffered bytes: got %d, want %d", len(w.buf), tc.wantBufLen)
+			if string(w.buf) != tc.wantBuf {
+				t.Errorf("buffered bytes: got %q, want %q", w.buf, tc.wantBuf)
 			}
 			wantKills := 0
 			if tc.wantLastErr != nil {
@@ -542,12 +542,48 @@ func TestRunner_SuccessfulExitWithAbandonedPipes(t *testing.T) {
 	}
 }
 
+// TestRunner_ZeroWaitDelayFallsBackToDefault pins the use-site fallback: a
+// runner built as a struct literal, bypassing newRipwireRunner, leaves
+// waitDelay zero, and its run must still bound the pipe wait at the package
+// default rather than hang on a child that holds the output pipes.
+func TestRunner_ZeroWaitDelayFallsBackToDefault(t *testing.T) {
+	// Not parallel: installs PATH state.
+	dir := t.TempDir()
+	pidFile := filepath.Join(dir, "child.pid")
+	installRipwireScript(t, "sleep 60 &\necho $! > "+shellSingleQuote(pidFile)+"\necho partial\n")
+	killChildOnCleanup(t, pidFile)
+
+	bin, err := exec.LookPath("ripwire")
+	if err != nil {
+		t.Fatalf("script not on PATH: %v", err)
+	}
+	runner := &ripwireRunner{binary: bin, maxOutputBytes: defaultMaxOutputBytes}
+
+	start := time.Now()
+	stdout, err := runWithin(t.Context(), t, runner)
+	if stdout != nil {
+		t.Fatalf("zero wait delay: got stdout %q, want nil (fail closed)", stdout)
+	}
+	if !errors.Is(err, exec.ErrWaitDelay) {
+		t.Fatalf("zero wait delay: got error %v, want one wrapping exec.ErrWaitDelay (bounded by the default)", err)
+	}
+	if elapsed := time.Since(start); elapsed < defaultWaitDelay {
+		t.Errorf("zero wait delay: returned after %v, want at least the default %v (the fallback was not applied)", elapsed, defaultWaitDelay)
+	}
+	if elapsed := time.Since(start); elapsed > maxReturnTime {
+		t.Errorf("zero wait delay: returned after %v, want within %v (default wait delay plus scheduling slack)", elapsed, maxReturnTime)
+	}
+}
+
 // installFloodWithHolderScript installs a probe executable named ripwire
 // on PATH that floods stdout past any test capture bound while a sibling
 // sleeper holds both output pipes open without writing. The flood drives
 // the oversize path; the sleeper — whose PID the script writes to the
 // returned file — keeps the pipes held past the wait delay even after the
 // flood writer dies, so oversize and abandoned-pipe conditions co-occur.
+// The sleeper starts and its PID is written before the flood begins, so the
+// oversize kill of the script can never pre-empt the PID write: the file
+// always appears and cleanup always reaps the sleeper.
 func installFloodWithHolderScript(t *testing.T) string {
 	t.Helper()
 
@@ -557,7 +593,7 @@ func installFloodWithHolderScript(t *testing.T) string {
 		t.Fatalf("installFloodWithHolderScript: write %s: %v", blobFile, err)
 	}
 	pidFile := filepath.Join(dir, "child.pid")
-	installRipwireScript(t, "cat "+shellSingleQuote(blobFile)+" >&1 &\nsleep 60 &\necho $! > "+shellSingleQuote(pidFile)+"\nwait\n")
+	installRipwireScript(t, "sleep 60 &\necho $! > "+shellSingleQuote(pidFile)+"\ncat "+shellSingleQuote(blobFile)+" >&1 &\nwait\n")
 	killChildOnCleanup(t, pidFile)
 	return pidFile
 }
@@ -588,6 +624,17 @@ func TestRunner_OversizeWinsOverWaitDelay(t *testing.T) {
 	}
 }
 
+// cancelWindowWaitDelay is the wait delay for
+// TestRunner_CancellationWinsOverOversize: long enough that a cancel issued
+// cancelAfterHolder after the holder starts always lands while Wait is
+// still blocked on the held pipes, short enough to stay under maxReturnTime.
+const cancelWindowWaitDelay = 2 * time.Second
+
+// cancelAfterHolder is how long TestRunner_CancellationWinsOverOversize
+// waits after the holder's PID appears before cancelling, giving the flood
+// time to cross the capture bound so both failure modes co-occur.
+const cancelAfterHolder = 300 * time.Millisecond
+
 // TestRunner_CancellationWinsOverOversize pins the error-classification
 // order when cancellation and oversize co-occur (design D3): the flood
 // crosses the capture bound, the sibling sleeper holds the pipes, and the
@@ -603,16 +650,23 @@ func TestRunner_CancellationWinsOverOversize(t *testing.T) {
 	}
 	runner := newRipwireRunner(bin)
 	runner.maxOutputBytes = 8
-	runner.waitDelay = testWaitDelay
+	// A long wait delay opens a wide window: after the oversize kill, Wait
+	// blocks until the delay expires because the sleeper holds the pipes.
+	runner.waitDelay = cancelWindowWaitDelay
 
-	// Cancel once the holder exists: by then the flood has crossed the
-	// bound, so both conditions hold and precedence decides the error.
+	// Cancel a fixed interval after the holder exists. The holder's PID is
+	// written before the flood starts, so the trigger cannot be destroyed
+	// by the oversize kill. The cancel lands inside the wait-delay window
+	// whether or not the flood has crossed the bound yet, and the runner
+	// checks the context only after Wait returns, so the expected error is
+	// context.Canceled on every interleaving — precedence decides it.
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 	go func() {
 		deadline := time.Now().Add(runDeadline)
 		for time.Now().Before(deadline) {
 			if raw, err := os.ReadFile(pidFile); err == nil && len(strings.TrimSpace(string(raw))) > 0 {
+				time.Sleep(cancelAfterHolder)
 				break
 			}
 			time.Sleep(10 * time.Millisecond)

@@ -101,3 +101,25 @@ A hang becomes a named error, which a caller can see and report.
 
 Removes an intermittent hang from the suite and pins the shutdown paths with
 deterministic, deadline-bounded tests.
+
+### V. Security by Default
+
+**Assessment**: PASS — improves
+
+A hostile or broken binary can no longer hold the analysis hostage by
+leaving a child on the output pipes. Every run returns in bounded time, and
+abandoned pipes fail closed. No new dependencies.
+
+### VI. Metric Fidelity
+
+**Assessment**: N/A
+
+No metric computation changes. A run whose output may be incomplete now
+fails instead of feeding partial data to the metrics.
+
+### VII. Language Agnosticism
+
+**Assessment**: PASS
+
+The change is confined to the ripwire adapter's runner. The core engine and
+the adapter interface are untouched.
