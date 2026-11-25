@@ -19,4 +19,4 @@
 
 - [x] 3.1 Run the CI commands from `.github/workflows/ci.yml` (build, vet, `go test -race -count=1` with coverage, coverage ratchet, golangci-lint at the CI-pinned version). Verify: all pass.
 - [x] 3.2 Add a CHANGELOG Unreleased → Fixed entry. Assess AGENTS.md (runner.go line) and README for impact. Verify: entry present; other docs updated only if they describe the changed behavior.
-- [ ] 3.3 Run the review council and resolve any REQUEST CHANGES. Verify: all reviewers APPROVE.
+- [x] 3.3 Run the review council and resolve any REQUEST CHANGES. Verify: all reviewers APPROVE.
