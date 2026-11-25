@@ -152,6 +152,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Capture now goes through bounded writers with `cmd.WaitDelay` (2s), so
   every run returns in bounded time; a ripwire that exits 0 but leaves its
   pipes held open now fails closed.
+  Spec: `openspec/changes/runner-pipe-hang/specs/ripwire-adapter/spec.md`
 - The `totalLines` description in `metrics/modulegraph.schema.json` now
   matches its GoDoc: zero is a measured count (a config-only module reports
   0), not a sentinel for an unknown count. Description only; the schema's
